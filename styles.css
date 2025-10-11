@@ -1,29 +1,107 @@
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans TC',sans-serif;background:#1C6F73;color:#fff}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans TC',sans-serif;
+  background:#1C6F73;
+  color:#fff;
+}
 .screen{display:none;min-height:100vh;padding:12px}
 .screen.active{display:block}
-.topbar{display:flex;align-items:center;gap:8px}
-.topbar h1,.topbar .title{margin:8px 0}
-.nav-btn{background:transparent;border:none;padding:4px;border-radius:8px}
+
+/* ---------- Topbar ---------- */
+.topbar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.topbar h1{
+  flex:1;
+  text-align:center;       /* 置中 */
+  font-size:28px;          /* 大字 */
+  font-weight:800;
+  margin:12px 0;
+  letter-spacing:1px;
+}
+.nav-btn{background:transparent;border:none;padding:6px;border-radius:10px}
+
+/* Puzzle header（左返回｜中進度｜右排行榜） */
+.puzzle-topbar{
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  padding-top: 8px;
+}
+.topbar-center{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:800;
+  font-size:18px;
+  letter-spacing:.5px;
+}
+
+/* ---------- Cover ---------- */
 .cover-top img{display:block;max-width:720px;width:100%;margin:0 auto;border-radius:12px}
 .cover-form{display:flex;flex-direction:column;gap:12px;max-width:420px;margin:18px auto 0}
 .cover-form input{padding:12px 14px;border-radius:10px;border:2px solid #eae6da;font-size:18px}
 .cover-form button{padding:12px;border:none;border-radius:10px;background:#eae6da;color:#114a4d;font-weight:700;font-size:18px}
-.level-list{list-style:none;padding:0;margin:12px auto;max-width:560px;display:flex;flex-direction:column;gap:12px}
-.level-item{display:flex;align-items:center;justify-content:space-between;background:#155f63;border-radius:14px;padding:10px 14px;border:2px solid #eae6da}
-.level-left{display:flex;align-items:center;gap:10px}
-.level-left img{height:48px;width:48px;object-fit:contain}
-.level-right{display:flex;align-items:center;gap:10px}
-.level-right .progress{font-weight:700}
-.board-wrap{display:flex;justify-content:center;margin:10px 0}
-.toolbar{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:6px 0}
-.toolbar .tool{background:#fff;border:2px solid #eae6da;border-radius:10px;padding:6px}
-.toolbar img{height:40px}
-.status{display:flex;justify-content:center;margin:6px 0}
-.pager{display:flex;justify-content:center;gap:20px;margin:8px 0}
-.pager button{background:#fff;border:2px solid #eae6da;border-radius:12px;padding:6px}
+
+/* ---------- Level List（名稱靠左大字｜同列右側 0/20｜更右側徽章｜最右箭頭） ---------- */
+.level-list{
+  list-style:none;
+  padding:0;
+  margin:12px auto;
+  max-width:720px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.level-item{
+  display:grid;
+  grid-template-columns: 1fr auto auto auto; /* 名稱 | 進度 | 徽章 | 箭頭 */
+  align-items:center;
+  gap:12px;
+  background:#155f63;
+  border-radius:14px;
+  padding:12px 14px;
+  border:2px solid #eae6da;
+}
+.level-name{ font-size:22px; font-weight:800; letter-spacing:.5px; }
+.level-progress{ justify-self:end; font-weight:700; min-width:72px; text-align:right; }
+.level-badge{ width:48px; height:48px; object-fit:contain; justify-self:end; }
+.level-enter{ background:transparent; border:2px solid #eae6da; border-radius:12px; padding:6px; display:inline-flex; align-items:center; justify-content:center; }
+.level-enter img{ height:24px; width:24px; }
+
+/* ---------- Puzzle ---------- */
+.puzzle-title{
+  text-align:center;
+  font-size:32px;     /* Q# 大字置中 */
+  font-weight:900;
+  margin:8px 0 6px;
+}
+.board-wrap{ display:flex; justify-content:center; margin:8px 0 10px; }
+#board{
+  background:#F7F7F7;
+  border-radius:12px;
+  box-shadow:0 0 0 10px #eae6da inset; /* 米白外框 */
+}
+
+/* 上色工具列 */
+.toolbar{ display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin:6px 0 10px; }
+.toolbar .tool{ background:#fff; border:2px solid #eae6da; border-radius:10px; padding:6px; outline:none; }
+.toolbar img{ height:40px; }
+.tool.active{ box-shadow:0 0 0 3px rgba(255,255,255,.8) inset, 0 0 0 2px #114a4d; }
+
+/* 底部：上一題｜小小未答｜下一題 */
+.puzzle-footer{ display:flex; align-items:center; justify-content:center; gap:18px; margin:12px 0 24px; }
+.pill{ background:#fff; color:#114a4d; border:2px solid #eae6da; border-radius:999px; padding:8px 14px; font-weight:800; }
+.status-small{ width:42px; height:42px; display:block; }
+
+/* ---------- Badges & Leaderboard ---------- */
 .badge-wrap{display:flex;justify-content:center;margin:20px 0}
 .badge-wrap img{max-width:60vw;height:auto}
+.badge-actions{display:flex;justify-content:center}
 .leaderboard{max-width:640px;margin:0 auto;background:#155f63;border:2px solid #eae6da;border-radius:16px;padding:10px}
 .lb-row{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #eae6da}
 .lb-row:last-child{border-bottom:none}
