@@ -486,22 +486,46 @@ async function loadLeaderboard(){
 
     const rows = data.data;
     list.innerHTML = '';
-    rows.forEach((r, i) => {
-      const name  = r.player_name || `玩家${i+1}`;
-      const total = Number(r.total_cleared || 0);
-      // 你目前表是 L1~L5 儲存「已解數量」，這裡就顯示 x/20
-      const lvStr = [r.L1, r.L2, r.L3, r.L4, r.L5]
-        .map(v => `${Number(v)||0}/20`).join('  ');
+    const MAX_PER_LEVEL = 20;
+const TOTAL_MAX = (STATE?.levels?.length || 5) * MAX_PER_LEVEL;
+const LV_COLORS = ['I','O','L','T','S']; // 取用 config.colors 中的顏色
 
-      const row = document.createElement('div');
-      row.className = 'lb-row';
-      row.innerHTML = `
-        <div class="lb-name">${i+1}. ${name}</div>
-        <div>${total}</div>
-        <div style="opacity:.8; min-width:9em; text-align:right">${lvStr}</div>
-      `;
-      list.appendChild(row);
-    });
+list.innerHTML = '';
+rows.forEach((r, i) => {
+  const name  = r.player_name || `玩家${i+1}`;
+  const lvVals = [
+    Number(r.L1)||0,
+    Number(r.L2)||0,
+    Number(r.L3)||0,
+    Number(r.L4)||0,
+    Number(r.L5)||0
+  ];
+
+  // 總數：若後端有 total_cleared 就用，否則用 L1~L5 相加
+  const total = Math.min(
+    TOTAL_MAX,
+    Number(r.total_cleared ?? lvVals.reduce((a,b)=>a+b,0)) || 0
+  );
+  const totalText = `${total} / ${TOTAL_MAX}`;
+
+  // 產生每一條關卡進度條（顏色取自 config.colors）
+  const barsHtml = lvVals.map((v, idx) => {
+    const pct = Math.max(0, Math.min(100, Math.round((v / MAX_PER_LEVEL) * 100)));
+    const colorKey = LV_COLORS[idx] || null;
+    const barColor = (colorKey && STATE?.config?.colors?.[colorKey]) || '#eae6da';
+    return `<div class="lb-bar"><i style="width:${pct}%; background:${barColor}"></i></div>`;
+  }).join('');
+
+  const row = document.createElement('div');
+  row.className = 'lb-row';
+  row.innerHTML = `
+    <div class="lb-name">${i+1}. ${name}</div>
+    <div class="lb-total">${totalText}</div>
+    <div class="lb-bars">${barsHtml}</div>
+  `;
+  list.appendChild(row);
+});
+
   } catch (e) {
     console.warn('loadLeaderboard failed', e);
     list.textContent = '排行榜暫不提供或伺服器離線';
