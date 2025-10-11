@@ -762,32 +762,3 @@ function injectPWAStyles(){
   // 可選：go('levels'); // 若想直接看到關卡列表
 })();
 
-/* === 手機自動縮放棋盤，確保完整顯示 === */
-function fitBoard() {
-  const board = document.getElementById('board');
-  const wrap = board.closest('.board-wrap');
-  const header = document.querySelector('#screen-puzzle .topbar');
-  const footer = document.querySelector('#screen-puzzle .puzzle-footer');
-
-  const topH = header?.offsetHeight || 0;
-  const bottomH = footer?.offsetHeight || 0;
-  const availH = window.innerHeight - topH - bottomH - 24; // 24 為安全間距
-  const availW = wrap.clientWidth;
-
-  // 棋盤比例 8:5
-  let w = availW;
-  let h = (w * 5) / 8;
-  if (h > availH) {
-    h = availH;
-    w = (h * 8) / 5;
-  }
-
-  board.style.width = w + 'px';
-  board.style.height = h + 'px';
-}
-
-window.addEventListener('resize', fitBoard);
-window.addEventListener('orientationchange', fitBoard);
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(fitBoard, 100);
-});
