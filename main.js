@@ -421,31 +421,41 @@ function checkSolved(){
 async function pushProgress(){
   try{
     const url = STATE.config && STATE.config.leaderboardUrl;
-    if(!url || !STATE.player) return;
-
-    // 各關 0–20
-    const prog = {};
-    for (const lv of STATE.levels){
-      prog['L'+lv.level] = countSolvedInRange(lv.range);
+    if(!url || !STATE.player){ 
+      console.warn('leaderboard disabled or no player'); 
+      return; 
     }
 
+    // 目前總通關數
+    const totalCleared = STATE.solved.size;
+
+    // 目前這題屬於哪個 Level（1~5）
+    const lv = STATE.levels.find(l => STATE.currentQ>=l.range[0] && STATE.currentQ<=l.range[1]);
+    const levelIndex = lv ? Number(lv.level) : null;      // 1..5 or null
+
     const payload = {
-      player_name: STATE.player,
-      total_cleared: STATE.solved.size,
-      level_cleared: (()=>{
-        const q = STATE.currentQ;
-        const lv = STATE.levels.find(l => q>=l.range[0] && q<=l.range[1]);
-        return lv ? lv.level : null;
-      })(),
-      puzzle_id: STATE.currentQ,
-      progress: prog
+      secret: STATE.config.sharedSecret || '',
+      player_name: STATE.player,              // 後端期待的 key
+      total_cleared: totalCleared,            // 0~100
+      level_cleared: levelIndex,              // 若剛好全破某一關，後端會把 L1~L5 記 True
+      puzzle_id: STATE.currentQ               // 可用於記錄最後通關題號
     };
 
-    // 關鍵：不要設定 content-type / mode，避免 CORS 預檢
-    await fetch(url, {
-      method:'POST',
+    console.log('[pushProgress] POST', payload);
+
+    const res = await fetch(url, {
+      method: 'POST',
+      mode: 'cors',
+      keepalive: true,
+      headers: { 'content-type':'application/json', 'accept':'application/json' },
       body: JSON.stringify(payload)
     });
+
+    // 不阻塞主流程：只做紀錄
+    let j = null;
+    try { j = await res.json(); } catch {}
+    console.log('[pushProgress] status', res.status, j);
+
   }catch(e){
     console.warn('pushProgress exception', e);
   }
@@ -453,35 +463,57 @@ async function pushProgress(){
 
 async function loadLeaderboard(){
   const list = $('#leaderboardList');
-  if(!list) return;
-  list.textContent = '讀取中…';
+  list.innerHTML = '讀取中…';
 
   const url = STATE.config && STATE.config.leaderboardUrl;
-  if(!url){ list.textContent = '排行榜暫不提供或伺服器離線'; return; }
+  if(!url){ list.textContent = '排行榜未啟用'; return; }
 
   try{
-    const res  = await fetch(url + (url.includes('?')?'&':'?') + 'top=50', { mode:'cors' });
-    const json = await res.json().catch(()=>null);
-    const rows = json && (json.data || json.players);
-    if(!res.ok || !Array.isArray(rows)){ list.textContent='排行榜暫不提供或伺服器離線'; return; }
+    const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'top=50', {
+      method: 'GET',
+      mode: 'cors',
+      headers: { 'accept':'application/json' }
+    });
+
+    let data = null;
+    try { data = await res.json(); } catch { /* 不是 JSON */ }
+
+    if(!res.ok || !data){
+      list.textContent = '排行榜暫不提供或伺服器離線';
+      return;
+    }
+
+    // 你的 Apps Script doGet 回傳 { ok:true, data:[...] }
+    // 舊版前端以為是 { ok:true, players:[...] }，這裡同時支援
+    const rows = Array.isArray(data.data) ? data.data
+               : Array.isArray(data.players) ? data.players
+               : null;
+
+    if(!rows){
+      list.textContent = '排行榜暫不提供或伺服器離線';
+      return;
+    }
 
     list.innerHTML = '';
-    rows.forEach((p,i)=>{
-      const L = [
-        Number(p.L1c||p.L1||0),
-        Number(p.L2c||p.L2||0),
-        Number(p.L3c||p.L3||0),
-        Number(p.L4c||p.L4||0),
-        Number(p.L5c||p.L5||0)
-      ].map(x=>Math.max(0,Math.min(20,x)));
+    rows.forEach((r, i)=>{
+      // r 可能是物件（由 HEADERS 映射而來）
+      const name = r.player_name || r.name || `玩家${i+1}`;
+      const total = Number(r.total_cleared || r.total || r.total_cleared_count || 0);
+
+      // 顯示 L1~L5 進度條（用 ✔/✖ 或 0/20）
+      const l = ['L1','L2','L3','L4','L5'].map(k=>{
+        const v = r[k];
+        // 你的表格是布林（TRUE/FALSE），這裡轉成 ✔/✖ 顯示
+        const ok = (String(v).toLowerCase()==='true');
+        return ok ? '✔' : '✖';
+      }).join(' ');
 
       const row = document.createElement('div');
-      row.className = 'lb-row lb-row-bars';
+      row.className = 'lb-row';
       row.innerHTML = `
-        <div class="lb-name">${i+1}. ${p.player_name || p.name || '玩家'}</div>
-        <div class="lb-bars">
-          ${L.map(v=>`<div class="bar"><div class="fill" style="width:${(v/20)*100}%"></div><span>${v}/20</span></div>`).join('')}
-        </div>
+        <div class="lb-name">${i+1}. ${name}</div>
+        <div>${total}</div>
+        <div style="opacity:.8; min-width:6em; text-align:right">${l}</div>
       `;
       list.appendChild(row);
     });
@@ -490,6 +522,7 @@ async function loadLeaderboard(){
     list.textContent = '排行榜暫不提供或伺服器離線';
   }
 }
+
 
 /* ---------- Nav ---------- */
 function initNav(){
