@@ -51,27 +51,74 @@ body{
 .level-list{
   list-style:none;
   padding:0;
-  margin:12px auto;
+  margin:16px auto 12px;
   max-width:720px;
   display:flex;
   flex-direction:column;
-  gap:12px;
+  gap:16px;
 }
-.level-item{
+
+/* 膠囊卡片 */
+.level-pill{
   display:grid;
-  grid-template-columns: 1fr auto auto auto; /* 名稱 | 進度 | 徽章 | 箭頭 */
+  grid-template-columns: 1fr auto auto; /* 左名稱區 | 問號圓 | 箭頭圓 */
+  align-items:center;
+  gap:14px;
+  background:#e7ecdf;
+  color:#114a4d;
+  border-radius:24px;
+  padding:18px 18px 18px 24px;
+  border:2px solid rgba(234,230,218,.9);
+  box-shadow: 0 1px 0 rgba(0,0,0,.03) inset;
+}
+
+/* 左邊名稱+進度 */
+.level-left{
+  display:flex;
   align-items:center;
   gap:12px;
-  background:#155f63;
-  border-radius:14px;
-  padding:12px 14px;
-  border:2px solid #eae6da;
 }
-.level-name{ font-size:22px; font-weight:800; letter-spacing:.5px; }
-.level-progress{ justify-self:end; font-weight:700; min-width:72px; text-align:right; }
-.level-badge{ width:48px; height:48px; object-fit:contain; justify-self:end; }
-.level-enter{ background:transparent; border:2px solid #eae6da; border-radius:12px; padding:6px; display:inline-flex; align-items:center; justify-content:center; }
-.level-enter img{ height:24px; width:24px; }
+.level-title{
+  font-size:28px;
+  font-weight:900;
+  letter-spacing:1px;
+}
+.level-progress{
+  font-size:18px;
+  font-weight:700;
+  opacity:0.85;
+}
+
+/* 問號徽章 */
+.badge-circle{
+  width:56px; height:56px;
+  border-radius:50%;
+  background:rgba(17,74,77,.08);
+  display:flex; align-items:center; justify-content:center;
+}
+.badge-circle img{
+  width:36px; height:36px; object-fit:contain; opacity:.9;
+}
+
+/* 箭頭按鈕 */
+.enter-circle{
+  width:56px; height:56px;
+  border-radius:50%;
+  border:none;
+  background:rgba(17,74,77,.15);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+}
+.enter-circle img{ width:26px; height:26px; }
+
+/* 小螢幕微調 */
+@media (max-width: 420px){
+  .level-title{ font-size:24px; }
+  .level-progress{ font-size:16px; }
+  .badge-circle, .enter-circle{ width:52px; height:52px; }
+  .badge-circle img{ width:32px; height:32px; }
+  .enter-circle img{ width:24px; height:24px; }
+}
 
 /* ---------- Puzzle ---------- */
 .puzzle-title{
