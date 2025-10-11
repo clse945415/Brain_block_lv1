@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Brain Block / 脳ブロック</title>
+  <link rel="icon" href="public/app-icon/app_icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Cover -->
+  <section id="screen-cover" class="screen active">
+    <div class="cover-top">
+      <img src="public/cover/cover_top.png" alt="cover" />
+    </div>
+    <div class="cover-form">
+      <input id="playerName" placeholder="請輸入玩家名稱" />
+      <button id="btnStart">開始</button>
+    </div>
+  </section>
+
+  <!-- Level Select -->
+  <section id="screen-levels" class="screen">
+    <header class="topbar">
+      <button class="nav-btn" data-go="cover"><img src="public/icons/nav/arrow_back.svg" /></button>
+      <h1>選擇關卡</h1>
+    </header>
+    <ul id="levelList" class="level-list"></ul>
+  </section>
+
+  <!-- Puzzle -->
+  <section id="screen-puzzle" class="screen">
+    <header class="topbar">
+      <button class="nav-btn" data-go="levels"><img src="public/icons/nav/arrow_back.svg" /></button>
+      <div class="title">Q<span id="qNumber"></span></div>
+      <div class="progress"><span id="totalProgress">0</span>/100</div>
+    </header>
+    <div class="board-wrap">
+      <canvas id="board" width="480" height="300"></canvas>
+    </div>
+    <div class="toolbar">
+      <button class="tool" data-piece="I"><img src="public/icons/pieces/btn_I.png" /></button>
+      <button class="tool" data-piece="O"><img src="public/icons/pieces/btn_O.png" /></button>
+      <button class="tool" data-piece="L"><img src="public/icons/pieces/btn_L.png" /></button>
+      <button class="tool" data-piece="T"><img src="public/icons/pieces/btn_T.png" /></button>
+      <button class="tool" data-piece="S"><img src="public/icons/pieces/btn_S.png" /></button>
+      <button id="btnClear" class="tool"><img src="public/icons/btn_clear.svg" /></button>
+    </div>
+    <div class="status">
+      <img id="statusImg" src="public/icons/status/btn_unsolved.svg" />
+    </div>
+    <div class="pager">
+      <button id="prevQ"><img src="public/icons/nav/arrow_left.svg" /></button>
+      <button id="nextQ"><img src="public/icons/nav/arrow_right.svg" /></button>
+    </div>
+  </section>
+
+  <!-- Badge Page -->
+  <section id="screen-badge" class="screen">
+    <header class="topbar">
+      <button class="nav-btn" data-go="levels"><img src="public/icons/nav/arrow_back.svg" /></button>
+      <h1>徽章</h1>
+    </header>
+    <div class="badge-wrap">
+      <img id="badgeBig" src="" alt="badge" />
+    </div>
+    <div class="badge-actions">
+      <button class="nav-btn" id="btnBadgeNext"><img src="public/icons/nav/arrow_next.svg" /></button>
+    </div>
+  </section>
+
+  <!-- Leaderboard -->
+  <section id="screen-leaderboard" class="screen">
+    <header class="topbar">
+      <button class="nav-btn" data-go="levels"><img src="public/icons/nav/arrow_back.svg" /></button>
+      <h1>排行榜</h1>
+    </header>
+    <div id="leaderboardList" class="leaderboard"></div>
+  </section>
+
+  <script src="main.js"></script>
+</body>
+</html>

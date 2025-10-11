@@ -1,0 +1,49 @@
+{
+  "levels": [
+    {
+      "level": 1,
+      "name": "壹股腦兒",
+      "badge": "L1",
+      "range": [
+        1,
+        20
+      ]
+    },
+    {
+      "level": 2,
+      "name": "貳虞我詐",
+      "badge": "L2",
+      "range": [
+        21,
+        40
+      ]
+    },
+    {
+      "level": 3,
+      "name": "參更半夜",
+      "badge": "L3",
+      "range": [
+        41,
+        60
+      ]
+    },
+    {
+      "level": 4,
+      "name": "肆是而非",
+      "badge": "L4",
+      "range": [
+        61,
+        80
+      ]
+    },
+    {
+      "level": 5,
+      "name": "伍所適從",
+      "badge": "L5",
+      "range": [
+        81,
+        100
+      ]
+    }
+  ]
+}

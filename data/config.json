@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "title_zh": "Brain Block",
+  "title_jp": "脳ブロック",
+  "pieces": [
+    "I",
+    "O",
+    "L",
+    "T",
+    "S"
+  ],
+  "colors": {
+    "I": "#86E3CE",
+    "O": "#D0E6A5",
+    "L": "#FFDD94",
+    "T": "#FA897B",
+    "S": "#CCABD8",
+    "gridBorder": "#DDDDDD",
+    "bg": "#1C6F73"
+  },
+  "ui": {
+    "showTotalProgress": true,
+    "clearBoardButton": true
+  },
+  "leaderboardUrl": "https://script.google.com/macros/s/AKfycbw0H2CVzZfCQPFPfkK5CZL5VR3hX7e-Tb7tIT-5myjkSgDkLmK7WfbUPNBKYNqEIMXW/exec",
+  "sharedSecret": "brainblock_secret_2025"
+}
