@@ -138,7 +138,14 @@ body{
 .toolbar{ display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin:6px 0 10px; }
 .toolbar .tool{ background:#fff; border:2px solid #eae6da; border-radius:10px; padding:6px; outline:none; }
 .toolbar img{ height:40px; }
-.tool.active{ box-shadow:0 0 0 3px rgba(255,255,255,.8) inset, 0 0 0 2px #114a4d; }
+.tool.active{
+  border-color:#114a4d;
+  box-shadow:
+    0 0 0 4px rgba(255,255,255,.95) inset, /* 內白暈更厚 */
+    0 0 0 3px #114a4d;                     /* 外黑框更粗 */
+  transform: translateY(-1px);
+}
+.toolbar .tool{ border:3px solid #eae6da; } /* 未選狀態維持原樣 */
 
 /* 底部：上一題｜小小未答｜下一題 */
 .puzzle-footer{ display:flex; align-items:center; justify-content:center; gap:18px; margin:12px 0 24px; }
