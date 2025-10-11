@@ -195,28 +195,11 @@ function drawBoard(){
   ctx.strokeStyle = STATE.config.colors.gridBorder;
   ctx.lineWidth = 2;
   ctx.strokeRect(ox, oy, cell*W, cell*H);
-  for(let r=1;r<H;r++){ ctx.beginPath(); ctx.moveTo(ox, oy+r*cell); ctx.lineTo(ox+W*cell, oy+r*cell); ctx.stroke(); }
-  for(let c=1;c<W;c++){ ctx.beginPath(); ctx.moveTo(ox+c*cell, oy); ctx.lineTo(ox+c*cell, oy+H*cell); ctx.stroke(); }
-
-  cvs.dataset.cell = JSON.stringify({ox,oy,cell});
-}
-  
-  // ===== 格線（放在提示之後，保持銳利） =====
-  ctx.strokeStyle = STATE.config.colors.gridBorder;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(ox, oy, cell*8, cell*5);
-  for(let r=1;r<5;r++){ ctx.beginPath(); ctx.moveTo(ox, oy+r*cell); ctx.lineTo(ox+8*cell, oy+r*cell); ctx.stroke(); }
-  for(let c=1;c<8;c++){ ctx.beginPath(); ctx.moveTo(ox+c*cell, oy); ctx.lineTo(ox+c*cell, oy+5*cell); ctx.stroke(); }
-
-  // ===== 玩家上色（不透明，覆蓋提示） =====
-  for(let r=0;r<5;r++){
-    for(let c=0;c<8;c++){
-      const t = STATE.grid[r][c];
-      if(t!=='.'){
-        ctx.fillStyle = STATE.config.colors[t];
-        ctx.fillRect(ox+c*cell+1, oy+r*cell+1, cell-2, cell-2);
-      }
-    }
+  for(let r=1;r<H;r++){
+    ctx.beginPath(); ctx.moveTo(ox, oy+r*cell); ctx.lineTo(ox+W*cell, oy+r*cell); ctx.stroke();
+  }
+  for(let c=1;c<W;c++){
+    ctx.beginPath(); ctx.moveTo(ox+c*cell, oy); ctx.lineTo(ox+c*cell, oy+H*cell); ctx.stroke();
   }
 
   cvs.dataset.cell = JSON.stringify({ox,oy,cell});
