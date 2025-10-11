@@ -175,3 +175,22 @@ body{
   height:28px;
   display:block;
 }
+
+/* Leaderboard 進度條 (5 關) */
+.lb-row-bars{ align-items: center; gap:12px; }
+.lb-bars{
+  display:grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap:8px; width: 60%;
+}
+.lb-bars .bar{
+  position:relative; height:16px; border:1px solid #eae6da; border-radius:8px; background:rgba(255,255,255,.15); overflow:hidden;
+}
+.lb-bars .bar .fill{ height:100%; background:#eae6da; }
+.lb-bars .bar span{
+  position:absolute; inset:0; font-size:10px; line-height:16px; text-align:center; color:#114a4d; font-weight:800;
+}
+@media (max-width:560px){
+  .lb-bars{ width:100%; }
+  .lb-bars .bar span{ font-size:9px; }
+}
