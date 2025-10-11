@@ -554,6 +554,202 @@ function initNav(){
   if (btnBadgeNext) btnBadgeNext.addEventListener('click', () => go('levels'));
 }
 
+/* ---------- PWA Install (Add to Home Screen) ---------- */
+const PWA_LS = {
+  iosTipDismissed: 'bb_ios_tip_dismissed',
+  installDismissed: 'bb_install_dismissed'
+};
+
+function setupPWA(){
+  registerServiceWorker();
+  setupInstallPrompt();
+  showIOSTipIfNeeded();
+  watchDisplayMode();
+}
+
+function registerServiceWorker(){
+  if ('serviceWorker' in navigator) {
+    // 你的 sw.js 放在根目錄或與 index.html 同層
+    navigator.serviceWorker.register('./sw.js').catch(err=>{
+      console.warn('[PWA] SW register failed:', err);
+    });
+  }
+}
+
+function isStandalone(){
+  // Android/桌面：display-mode；iOS Safari：navigator.standalone
+  const dm = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+  return dm || window.navigator.standalone === true;
+}
+
+let _deferredPrompt = null;
+function setupInstallPrompt(){
+  // 動態注入最小樣式
+  injectPWAStyles();
+
+  // 如果已是安裝狀態就不顯示
+  if (isStandalone()) return;
+
+  window.addEventListener('beforeinstallprompt', (e)=>{
+    // 阻止瀏覽器自己跳出小框框，改成自家按鈕
+    e.preventDefault();
+    _deferredPrompt = e;
+
+    // 若使用者沒有永久關閉，顯示安裝浮動按鈕
+    if (!localStorage.getItem(PWA_LS.installDismissed)) {
+      renderInstallFAB();
+    }
+  });
+
+  window.addEventListener('appinstalled', ()=>{
+    // 安裝成功：收起提示
+    removeNode('#bb-install-fab');
+    removeNode('#bb-ios-tip');
+    _deferredPrompt = null;
+  });
+}
+
+function renderInstallFAB(){
+  if (document.querySelector('#bb-install-fab')) return;
+  const btn = document.createElement('button');
+  btn.id = 'bb-install-fab';
+  btn.type = 'button';
+  btn.setAttribute('aria-label','安裝 Brain Block');
+  btn.innerHTML = '安裝&nbsp;App';
+
+  btn.addEventListener('click', async ()=>{
+    if (!_deferredPrompt) {
+      // 沒拿到事件，代表瀏覽器不支援或已安裝
+      btn.classList.add('bb-hide');
+      return;
+    }
+    _deferredPrompt.prompt();
+    try{
+      const choice = await _deferredPrompt.userChoice;
+      // 使用者選擇後，不論接受或取消，都先把 _deferredPrompt 清掉
+      _deferredPrompt = null;
+      // 若取消，保留按鈕讓他之後再安裝；若安裝成功，系統會觸發 appinstalled 事件
+      if (choice && choice.outcome === 'dismissed') {
+        // 什麼都不做，讓他可以再按
+      }
+    }catch(e){
+      console.warn('[PWA] userChoice error:', e);
+    }
+  });
+
+  // 右上角關閉叉叉
+  const close = document.createElement('span');
+  close.className = 'bb-fab-close';
+  close.innerHTML = '&times;';
+  close.setAttribute('aria-label','關閉');
+  close.addEventListener('click', ()=>{
+    localStorage.setItem(PWA_LS.installDismissed, '1');
+    btn.classList.add('bb-hide');
+    setTimeout(()=>removeNode('#bb-install-fab'), 200);
+  });
+  btn.appendChild(close);
+
+  document.body.appendChild(btn);
+}
+
+function showIOSTipIfNeeded(){
+  // iOS Safari 沒有 beforeinstallprompt，要教他用「分享 -> 加入主畫面」
+  const ua = window.navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/i.test(ua);
+  const isSafari = isIOS && !!window.webkit && !!window.webkit.messageHandlers === false; // 大致辨識
+  const alreadyDismissed = localStorage.getItem(PWA_LS.iosTipDismissed);
+
+  if (isStandalone() || !isIOS) return;
+  if (alreadyDismissed) return;
+
+  // 顯示 iOS 導引條
+  if (!document.querySelector('#bb-ios-tip')) {
+    const bar = document.createElement('div');
+    bar.id = 'bb-ios-tip';
+    bar.innerHTML = `
+      <div class="bb-ios-tip-text">
+        將此遊戲加入主畫面：<br>
+        1) 點選 Safari 的「分享」圖示，2) 選擇「加入主畫面」
+      </div>
+      <button type="button" class="bb-ios-tip-btn">知道了</button>
+    `;
+    bar.querySelector('.bb-ios-tip-btn').addEventListener('click', ()=>{
+      localStorage.setItem(PWA_LS.iosTipDismissed, '1');
+      bar.classList.add('bb-hide');
+      setTimeout(()=>removeNode('#bb-ios-tip'), 200);
+    });
+    document.body.appendChild(bar);
+  }
+}
+
+function watchDisplayMode(){
+  // 監聽顯示模式變化（Chrome/Android）
+  if (window.matchMedia) {
+    const mm = window.matchMedia('(display-mode: standalone)');
+    if (mm && mm.addEventListener) {
+      mm.addEventListener('change', (e)=>{
+        if (e.matches) {
+          removeNode('#bb-install-fab');
+          removeNode('#bb-ios-tip');
+        }
+      });
+    }
+  }
+}
+
+function removeNode(sel){
+  const el = typeof sel === 'string' ? document.querySelector(sel) : sel;
+  if (el && el.parentNode) el.parentNode.removeChild(el);
+}
+
+function injectPWAStyles(){
+  if (document.querySelector('#bb-pwa-style')) return;
+  const css = `
+#bb-install-fab{
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9999;
+  padding: 12px 16px 12px 16px;
+  border: none;
+  border-radius: 999px;
+  font-size: 15px;
+  line-height: 1;
+  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+  background: #1C6F73; color: #fff;
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: transform .18s ease, opacity .18s ease;
+}
+#bb-install-fab.bb-hide{ opacity: 0; transform: translateY(8px); }
+#bb-install-fab .bb-fab-close{
+  margin-left: 8px; font-size: 18px; opacity: .9; line-height: 1;
+  cursor: pointer;
+}
+#bb-ios-tip{
+  position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 9998;
+  background: rgba(255,255,255,.96); backdrop-filter: blur(6px);
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 12px; padding: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.12);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  font-size: 14px; color: #333;
+}
+#bb-ios-tip .bb-ios-tip-btn{
+  border: none; background: #1C6F73; color: #fff;
+  padding: 8px 12px; border-radius: 999px; font-size: 14px;
+}
+@media (min-width: 768px){
+  #bb-install-fab{ bottom: 24px; right: 24px; }
+  #bb-ios-tip{ left: calc(50% - 280px); right: auto; width: 560px; }
+}
+  `.trim();
+  const style = document.createElement('style');
+  style.id = 'bb-pwa-style';
+  style.textContent = css;
+  document.head.appendChild(style);
+}
+
+
 /* ---------- Boot ---------- */
 (async function(){
   loadProgressFromLocal();        // 優先載本地存檔
@@ -562,5 +758,6 @@ function initNav(){
   bindToolbar();
   initNav();
   renderLevelList();
+  setupPWA();
   // 可選：go('levels'); // 若想直接看到關卡列表
 })();
