@@ -224,72 +224,152 @@ function navigateQ(delta){
 
 /* ---------- 驗證：整盤全滿 + 共10塊 + I/O/L/T/S各2 ---------- */
 function checkSolved(){
-  const H=5, W=8, dirs=[[1,0],[-1,0],[0,1],[0,-1]];
-  const inb=(r,c)=>r>=0&&r<H&&c>=0&&c<W;
+  const H=5, W=8;
 
-  // A) 全滿
-  for(let r=0;r<H;r++){
-    for(let c=0;c<W;c++){
-      if(STATE.grid[r][c]==='.') return;
-    }
-  }
-
-  // B) 題目限制：鎖定格不可被改色
+  // A) 全滿 + 題目鎖定格未被改色
   const target = STATE.puzzles[STATE.currentQ-1];
-  if(target && target.rows){
-    for(let r=0;r<H;r++){
-      const row = target.rows[r] || '';
-      for(let c=0;c<W;c++){
-        const need = row[c] || '.';
-        if(STATE.locked[r][c] && STATE.grid[r][c] !== need){
-          return; // 題目格被改動
-        }
-      }
-    }
-  }
-
-  // 形狀簽名
-  const sigOf = (cells)=>{
-    const minR=Math.min(...cells.map(p=>p[0]));
-    const minC=Math.min(...cells.map(p=>p[1]));
-    const norm=cells.map(([r,c])=>[r-minR,c-minC]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
-    return norm.map(([r,c])=>`${r},${c}`).join(';');
-  };
-
-  // C) 全盤分塊（題目+玩家）：每塊 4 格，形狀合法；I/O/L/T/S 各 2 塊
-  const seen = Array.from({length:H},()=>Array(W).fill(false));
-  const cnt = {I:0,O:0,L:0,T:0,S:0};
-
+  const tgtRows = target ? target.rows : null;
   for(let r=0;r<H;r++){
     for(let c=0;c<W;c++){
       const ch = STATE.grid[r][c];
-      if(ch==='.' || seen[r][c]) continue;
-      if(!['I','O','L','T','S'].includes(ch)) return;
-
-      // BFS 找同字母連通塊（全盤，不分鎖定與否）
-      const q=[[r,c]]; seen[r][c]=true;
-      const cells=[[r,c]];
-      while(q.length){
-        const [rr,cc]=q.shift();
-        for(const [dr,dc] of dirs){
-          const nr=rr+dr, nc=cc+dc;
-          if(!inb(nr,nc)) continue;
-          if(seen[nr][nc]) continue;
-          if(STATE.grid[nr][nc]!==ch) continue;
-          seen[nr][nc]=true; q.push([nr,nc]); cells.push([nr,nc]);
-        }
+      if(ch==='.') return; // 尚未填滿
+      if(tgtRows && STATE.locked[r][c]) {
+        const need = (tgtRows[r] || '')[c] || '.';
+        if(ch !== need) return; // 題目格被改
       }
-
-      // 每塊 4 格 & 形狀合法（含旋/鏡）
-      if(cells.length!==4) return;
-      if(!VALID_SIGS[ch].has(sigOf(cells))) return;
-
-      cnt[ch]++; if(cnt[ch]>2) return; // 任一種>2 立即失敗
+      if(!['I','O','L','T','S'].includes(ch)) return;
     }
   }
 
-  // 各種剛好 2（總共 10 塊）
-  if(!['I','O','L','T','S'].every(t=>cnt[t]===2)) return;
+  // B) 準備所有合法形狀的所有朝向（座標）
+  const rot = shape => shape.map(([r,c])=>[c,-r]);
+  const flip = shape => shape.map(([r,c])=>[r,-c]);
+  const normalize = shape => {
+    const minR=Math.min(...shape.map(p=>p[0]));
+    const minC=Math.min(...shape.map(p=>p[1]));
+    return shape.map(([r,c])=>[r-minR,c-minC]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  };
+  const uniqShapes = base=>{
+    let s=base, out=[], seen=new Set();
+    for(let i=0;i<4;i++){
+      const a=normalize(s), b=normalize(flip(s));
+      const ka=JSON.stringify(a), kb=JSON.stringify(b);
+      if(!seen.has(ka)){ seen.add(ka); out.push(a); }
+      if(!seen.has(kb)){ seen.add(kb); out.push(b); }
+      s=rot(s);
+    }
+    return out;
+  };
+  const BASE = {
+    I:[[0,0],[1,0],[2,0],[3,0]],
+    O:[[0,0],[0,1],[1,0],[1,1]],
+    L:[[0,0],[1,0],[2,0],[2,1]],
+    T:[[0,0],[0,1],[0,2],[1,1]],
+    S:[[0,1],[0,2],[1,0],[1,1]],
+  };
+  const ORIENTS = Object.fromEntries(['I','O','L','T','S'].map(t=>[t, uniqShapes(BASE[t])]));
+
+  // C) 產生所有「候選放置」：符合邊界、棋盤字母一致的 4 格組合
+  //    每個候選包含：{cells:[idx...4], type:'I'|...}
+  const idx = (r,c)=> r*W + c;
+  const CAND = [];
+  for (const t of ['I','O','L','T','S']){
+    for (const shape of ORIENTS[t]){
+      // 把 shape 視為相對座標，嘗試所有左上角位移
+      for(let r0=0;r0<H;r0++){
+        for(let c0=0;c0<W;c0++){
+          let ok=true, cells=[];
+          for(const [dr,dc] of shape){
+            const r=r0+dr, c=c0+dc;
+            if(r<0||r>=H||c<0||c>=W){ ok=false; break; }
+            if(STATE.grid[r][c]!==t){ ok=false; break; }
+            cells.push(idx(r,c));
+          }
+          if(ok){
+            // 去重（同一組 4 格可能由不同錨點生成）
+            cells.sort((a,b)=>a-b);
+            const key = t + ':' + cells.join(',');
+            if(!CAND._seen){ CAND._seen=new Set(); }
+            if(!CAND._seen.has(key)){
+              CAND._seen.add(key);
+              CAND.push({type:t, cells});
+            }
+          }
+        }
+      }
+    }
+  }
+  if (CAND.length === 0) return; // 沒任何可用放置
+
+  // 建索引：每個 cell -> 哪些候選涵蓋它
+  const cellToCand = Array.from({length:H*W}, ()=>[]);
+  CAND.forEach((cand, i)=> cand.cells.forEach(ci=> cellToCand[ci].push(i)));
+
+  // D) 用精確鋪滿（Exact Cover）搜尋 10 塊，並且每種剛好 2 塊
+  const usedCell = Array(H*W).fill(false);
+  const usedCand = Array(CAND.length).fill(false);
+  const countByType = {I:0,O:0,L:0,T:0,S:0};
+  let picked = 0;
+
+  // 選擇下一個尚未覆蓋的格，採用最少候選（啟發式剪枝）
+  function nextCell(){
+    let best=-1, list=null;
+    for(let i=0;i<H*W;i++){
+      if(usedCell[i]) continue;
+      const arr = cellToCand[i].filter(ci=>{
+        if(usedCand[ci]) return false;
+        // 候選不能碰到已佔格
+        for(const cc of CAND[ci].cells) if(usedCell[cc]) return false;
+        // 類型不能超過 2
+        if(countByType[CAND[ci].type] >= 2) return false;
+        return true;
+      });
+      if(arr.length===0) return {i, options:[]}; // 死路
+      if(best===-1 || arr.length < best){
+        best = arr.length;
+        list = {i, options:arr};
+        if(best===1) break;
+      }
+    }
+    return list; // 可能為 null（全部覆蓋）
+  }
+
+  function dfs(){
+    if (picked === 10){
+      // 全部覆蓋了嗎？
+      for(let i=0;i<H*W;i++) if(!usedCell[i]) return false;
+      return ['I','O','L','T','S'].every(t=>countByType[t]===2);
+    }
+    const choice = nextCell();
+    if(!choice) return false;
+    const {options} = choice;
+    // 沒選項：失敗
+    if(options.length===0) return false;
+
+    // 逐一嘗試候選
+    for(const ci of options){
+      const cand = CAND[ci];
+      // second check overlap
+      let clash=false; for(const cc of cand.cells){ if(usedCell[cc]){ clash=true; break; } }
+      if(clash) continue;
+
+      // 放
+      usedCand[ci]=true; picked++; countByType[cand.type]++;
+      cand.cells.forEach(cc=> usedCell[cc]=true);
+
+      // 剪枝：任何類型超過 2、或剩餘形狀不足以達到 10-picked，都會自動在遞迴中排除
+      if (countByType[cand.type] <= 2 && dfs()) return true;
+
+      // 撤銷
+      cand.cells.forEach(cc=> usedCell[cc]=false);
+      countByType[cand.type]--;
+      picked--; usedCand[ci]=false;
+    }
+    return false;
+  }
+
+  const ok = dfs();
+  if(!ok) return;
 
   // ✅ 通關
   STATE.solved.add(STATE.currentQ);
@@ -303,7 +383,6 @@ function checkSolved(){
   }
   pushProgress();
 }
-
 /* ---------- Leaderboard ---------- */
 async function pushProgress(){
   try{
