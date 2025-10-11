@@ -81,6 +81,38 @@ function renderLevelList(){
     ul.appendChild(li);
   }
 }
+const P_TYPES = ['I','O','L','T','S'];
+
+function rotate90(shape){ return shape.map(([r,c])=>[c,-r]); }
+function flipH(shape){ return shape.map(([r,c])=>[r,-c]); }
+function normalize(shape){
+  const minR = Math.min(...shape.map(p=>p[0]));
+  const minC = Math.min(...shape.map(p=>p[1]));
+  return shape.map(([r,c])=>[r-minR, c-minC]).sort((a,b)=>a[0]-b[0] || a[1]-b[1]);
+}
+function signature(shape){ return normalize(shape).map(([r,c])=>`${r},${c}`).join(';'); }
+function uniq(arr){ return Array.from(new Set(arr)); }
+
+function allOrientations(base){
+  let shapes = [], s = base;
+  for(let i=0;i<4;i++){
+    shapes.push(signature(s));
+    shapes.push(signature(flipH(s)));
+    s = rotate90(s);
+  }
+  return uniq(shapes);
+}
+
+const BASE_SHAPES = {
+  I: [[0,0],[1,0],[2,0],[3,0]],
+  O: [[0,0],[0,1],[1,0],[1,1]],
+  L: [[0,0],[1,0],[2,0],[2,1]],
+  T: [[0,0],[0,1],[0,2],[1,1]],
+  S: [[0,1],[0,2],[1,0],[1,1]], // 鏡像(Z)會被 allOrientations 自動涵蓋
+};
+const VALID_SIGS = Object.fromEntries(
+  P_TYPES.map(t => [t, new Set(allOrientations(BASE_SHAPES[t]))])
+);
 
 /* ---------- Puzzle ---------- */
 function openPuzzle(id){
@@ -203,26 +235,87 @@ function navigateQ(delta){
 }
 
 function checkSolved(){
-  const target = STATE.puzzles[STATE.currentQ-1];
-  if(!target) return;
-  const tgt = target.rows;
-  const rows = STATE.grid.map(r=>r.join(''));
-  const normalize = s => s.replace(/[^IOLTS.]/g,'');
-  const ok = rows.length===tgt.length && rows.every((row,i)=> normalize(row)===normalize(tgt[i]));
-  if(ok){
-    STATE.solved.add(STATE.currentQ);
-    $('#statusImg').src = 'public/icons/status/btn_solved.svg';
-    updateTotalProgress();
-    updateLevelProgressForCurrentQ();
+  const H=5, W=8;
 
-    // 若完成一整關，顯示徽章
-    const lv = STATE.levels.find(l=> STATE.currentQ>=l.range[0] && STATE.currentQ<=l.range[1]);
-    if(lv && isLevelCleared(lv)){
-      $('#badgeBig').src = `public/badges_big/${lv.badge}_big.png`;
-      go('badge');
+  // --- 題目限制：取出本題 target（puzzles.json 的 rows） ---
+  const target = STATE.puzzles[STATE.currentQ-1];
+  const tgtRows = target ? target.rows : null; // 5 行，每行 8 字，字元是 I/O/L/T/S 或 '.'
+
+  // --- (A) 先檢查：整盤必須填滿 40 格 ---
+  for(let r=0;r<H;r++){
+    for(let c=0;c<W;c++){
+      if(STATE.grid[r][c] === '.') return; // 尚未全滿
     }
-    pushProgress();
   }
+
+  // --- (B) 題目限制必須滿足 ---
+  // 規則：若題目該格為 I/O/L/T/S，玩家該格必須放同字母；題目為 '.' 則不限制
+  if(tgtRows){
+    for(let r=0;r<H;r++){
+      const row = tgtRows[r] || '';
+      for(let c=0;c<W;c++){
+        const need = row[c] || '.';
+        if('IOLTS'.includes(need) && STATE.grid[r][c] !== need){
+          return; // 未遵守題目限制
+        }
+      }
+    }
+  }
+
+  // --- (C) 數量與形狀檢查：每種恰好 2 個、每塊 4 格、形狀合法（含旋轉/鏡像） ---
+  const seen = Array.from({length:H},()=>Array(W).fill(false));
+  const cnt = {I:0,O:0,L:0,T:0,S:0};
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+
+  for(let r=0;r<H;r++){
+    for(let c=0;c<W;c++){
+      const ch = STATE.grid[r][c];
+      if(ch==='.' || seen[r][c]) continue;
+      if(!P_TYPES.includes(ch)) return;
+
+      // BFS 找連通塊（同字母）
+      const q=[[r,c]]; seen[r][c]=true;
+      const cells=[[r,c]];
+      while(q.length){
+        const [rr,cc]=q.shift();
+        for(const [dr,dc] of dirs){
+          const nr=rr+dr, nc=cc+dc;
+          if(nr<0||nr>=H||nc<0||nc>=W) continue;
+          if(seen[nr][nc]) continue;
+          if(STATE.grid[nr][nc]!==ch) continue;
+          seen[nr][nc]=true;
+          q.push([nr,nc]);
+          cells.push([nr,nc]);
+        }
+      }
+
+      // 每塊必須 4 格
+      if(cells.length!==4) return;
+
+      // 形狀合法（允許旋轉/鏡像）
+      const sig = signature(cells);
+      if(!VALID_SIGS[ch].has(sig)) return;
+
+      // 計數
+      cnt[ch]++;
+      if(cnt[ch]>2) return;
+    }
+  }
+
+  if(!P_TYPES.every(t=>cnt[t]===2)) return;
+
+  // --- 通關 ---
+  STATE.solved.add(STATE.currentQ);
+  $('#statusImg').src = 'public/icons/status/btn_solved.svg';
+  updateTotalProgress();
+  updateLevelProgressForCurrentQ();
+
+  const lv = STATE.levels.find(l => STATE.currentQ>=l.range[0] && STATE.currentQ<=l.range[1]);
+  if(lv && isLevelCleared(lv)){
+    $('#badgeBig').src = `public/badges_big/${lv.badge}_big.png`;
+    go('badge');
+  }
+  pushProgress();
 }
 
 function updateTotalProgress(){
