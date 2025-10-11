@@ -459,67 +459,61 @@ async function pushProgress(){
   }
 }
 
-async function loadLeaderboard(){
+function loadLeaderboard(){
   const list = $('#leaderboardList');
-  list.innerHTML = '讀取中…';
+  if (!list) return;
+  list.textContent = '讀取中…';
 
-  const url = STATE.config && STATE.config.leaderboardUrl;
-  if(!url){ list.textContent = '排行榜未啟用'; return; }
+  const base = STATE.config && STATE.config.leaderboardUrl;
+  if (!base){ list.textContent = '排行榜未啟用'; return; }
 
-  try{
-    const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'top=50', {
-      method: 'GET',
-      mode: 'cors',
-      headers: { 'accept':'application/json' }
-    });
+  // 先清掉舊 callback
+  const cbName = '__bb_lb_cb';
+  if (window[cbName]) delete window[cbName];
 
-    let data = null;
-    try { data = await res.json(); } catch { /* 不是 JSON */ }
-
-    if(!res.ok || !data){
-      list.textContent = '排行榜暫不提供或伺服器離線';
-      return;
+  window[cbName] = function(data){
+    try{
+      // 你的 doGet 會回 { ok:true, data:[...] }
+      const rows = data && (data.data || data.players);
+      if (!Array.isArray(rows)) {
+        list.textContent = '讀取失敗';
+        return;
+      }
+      list.innerHTML = '';
+      rows.forEach((r, i)=>{
+        const name  = r.player_name || r.name || `玩家${i+1}`;
+        const total = Number(r.total_cleared || r.total || 0);
+        const ltxt  = ['L1','L2','L3','L4','L5'].map(k=>{
+          const v = String(r[k] ?? '').toLowerCase();
+          return (v === 'true' || v === '1' || v === 'yes') ? '✔' : '✖';
+        }).join(' ');
+        const row = document.createElement('div');
+        row.className = 'lb-row';
+        row.innerHTML = `
+          <div class="lb-name">${i+1}. ${name}</div>
+          <div>${total}</div>
+          <div style="opacity:.8;min-width:6em;text-align:right">${ltxt}</div>
+        `;
+        list.appendChild(row);
+      });
+    }catch(e){
+      list.textContent = '讀取失敗';
+    }finally{
+      // 清理 script
+      const tag = document.getElementById('bb-lb-jsonp');
+      if (tag && tag.parentNode) tag.parentNode.removeChild(tag);
+      delete window[cbName];
     }
+  };
 
-    // 你的 Apps Script doGet 回傳 { ok:true, data:[...] }
-    // 舊版前端以為是 { ok:true, players:[...] }，這裡同時支援
-    const rows = Array.isArray(data.data) ? data.data
-               : Array.isArray(data.players) ? data.players
-               : null;
-
-    if(!rows){
-      list.textContent = '排行榜暫不提供或伺服器離線';
-      return;
-    }
-
-    list.innerHTML = '';
-    rows.forEach((r, i)=>{
-      // r 可能是物件（由 HEADERS 映射而來）
-      const name = r.player_name || r.name || `玩家${i+1}`;
-      const total = Number(r.total_cleared || r.total || r.total_cleared_count || 0);
-
-      // 顯示 L1~L5 進度條（用 ✔/✖ 或 0/20）
-      const l = ['L1','L2','L3','L4','L5'].map(k=>{
-        const v = r[k];
-        // 你的表格是布林（TRUE/FALSE），這裡轉成 ✔/✖ 顯示
-        const ok = (String(v).toLowerCase()==='true');
-        return ok ? '✔' : '✖';
-      }).join(' ');
-
-      const row = document.createElement('div');
-      row.className = 'lb-row';
-      row.innerHTML = `
-        <div class="lb-name">${i+1}. ${name}</div>
-        <div>${total}</div>
-        <div style="opacity:.8; min-width:6em; text-align:right">${l}</div>
-      `;
-      list.appendChild(row);
-    });
-  }catch(e){
-    console.warn('loadLeaderboard failed', e);
-    list.textContent = '排行榜暫不提供或伺服器離線';
-  }
+  const src = base + (base.includes('?') ? '&' : '?') + 'top=50&callback=' + cbName;
+  const s = document.createElement('script');
+  s.id = 'bb-lb-jsonp';
+  s.src = src;
+  s.onerror = () => { list.textContent = '讀取失敗'; };
+  document.body.appendChild(s);
 }
+
 
 
 /* ---------- Nav ---------- */
