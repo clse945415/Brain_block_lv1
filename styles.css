@@ -145,7 +145,7 @@ body{
     0 0 0 3px #114a4d;                     /* 外黑框更粗 */
   transform: translateY(-1px);
 }
-.toolbar .tool{ border:5px solid #eae6da; } /* 未選狀態維持原樣 */
+.toolbar .tool{ border:10px solid #eae6da; } /* 未選狀態維持原樣 */
 
 /* 底部：上一題｜小小未答｜下一題 */
 .puzzle-footer{ display:flex; align-items:center; justify-content:center; gap:18px; margin:12px 0 24px; }
