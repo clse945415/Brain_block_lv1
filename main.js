@@ -224,110 +224,81 @@ function navigateQ(delta){
 
 /* ---------- 驗證：整盤全滿 + 共10塊 + I/O/L/T/S各2 ---------- */
 function checkSolved(){
-  const H = 5, W = 8;
-  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
-  const inb = (r,c)=> r>=0 && r<H && c>=0 && c<W;
+  const H=5, W=8, dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  const inb=(r,c)=>r>=0&&r<H&&c>=0&&c<W;
 
   // A) 全滿
   for(let r=0;r<H;r++){
     for(let c=0;c<W;c++){
-      if(STATE.grid[r][c] === '.') return;
+      if(STATE.grid[r][c]==='.') return;
     }
   }
 
-  // B) 題目鎖定格顏色未被修改（雙重保險）
+  // B) 題目限制：鎖定格不可被改色
   const target = STATE.puzzles[STATE.currentQ-1];
   if(target && target.rows){
     for(let r=0;r<H;r++){
       const row = target.rows[r] || '';
       for(let c=0;c<W;c++){
         const need = row[c] || '.';
-        if(STATE.locked[r][c] && STATE.grid[r][c] !== need) return;
+        if(STATE.locked[r][c] && STATE.grid[r][c] !== need){
+          return; // 題目格被改動
+        }
       }
     }
   }
 
-  // 工具：產生規範化簽名（用於形狀比對）
-  const sigOf = (cells) => {
-    const minR = Math.min(...cells.map(p=>p[0]));
-    const minC = Math.min(...cells.map(p=>p[1]));
-    const norm = cells.map(([r,c])=>[r-minR,c-minC]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  // 形狀簽名
+  const sigOf = (cells)=>{
+    const minR=Math.min(...cells.map(p=>p[0]));
+    const minC=Math.min(...cells.map(p=>p[1]));
+    const norm=cells.map(([r,c])=>[r-minR,c-minC]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
     return norm.map(([r,c])=>`${r},${c}`).join(';');
   };
 
-  // C) 檢查「題目本身」的塊（只看 locked=true 的格）
-  {
-    const seen = Array.from({length:H},()=>Array(W).fill(false));
-    for(let r=0;r<H;r++){
-      for(let c=0;c<W;c++){
-        if(!STATE.locked[r][c] || seen[r][c]) continue;
-        const ch = STATE.grid[r][c];
-        if(!P_TYPES.includes(ch)) return;
+  // C) 全盤分塊（題目+玩家）：每塊 4 格，形狀合法；I/O/L/T/S 各 2 塊
+  const seen = Array.from({length:H},()=>Array(W).fill(false));
+  const cnt = {I:0,O:0,L:0,T:0,S:0};
 
-        const q = [[r,c]]; seen[r][c]=true;
-        const cells = [[r,c]];
-        while(q.length){
-          const [rr,cc] = q.shift();
-          for(const [dr,dc] of dirs){
-            const nr = rr+dr, nc = cc+dc;
-            if(!inb(nr,nc)) continue;
-            if(seen[nr][nc]) continue;
-            if(!STATE.locked[nr][nc]) continue;     // 只在題目鎖定區擴張
-            if(STATE.grid[nr][nc] !== ch) continue;
-            seen[nr][nc] = true;
-            q.push([nr,nc]);
-            cells.push([nr,nc]);
-          }
-        }
-        // 題目每塊也必須是合法 tetromino（4 格、形狀正確）
-        if(cells.length !== 4) return;
-        if(!VALID_SIGS[ch].has(sigOf(cells))) return;
-      }
-    }
-  }
-
-  // D) 檢查「全盤（題目+玩家）」塊數與形狀
-  const seenAll = Array.from({length:H},()=>Array(W).fill(false));
-  const totalCnt = {I:0,O:0,L:0,T:0,S:0};
   for(let r=0;r<H;r++){
     for(let c=0;c<W;c++){
       const ch = STATE.grid[r][c];
-      if(ch==='.' || seenAll[r][c]) continue;
-      if(!P_TYPES.includes(ch)) return;
+      if(ch==='.' || seen[r][c]) continue;
+      if(!['I','O','L','T','S'].includes(ch)) return;
 
-      const q = [[r,c]]; seenAll[r][c]=true;
-      const cells = [[r,c]];
+      // BFS 找同字母連通塊（全盤，不分鎖定與否）
+      const q=[[r,c]]; seen[r][c]=true;
+      const cells=[[r,c]];
       while(q.length){
-        const [rr,cc] = q.shift();
+        const [rr,cc]=q.shift();
         for(const [dr,dc] of dirs){
-          const nr = rr+dr, nc = cc+dc;
+          const nr=rr+dr, nc=cc+dc;
           if(!inb(nr,nc)) continue;
-          if(seenAll[nr][nc]) continue;
-          if(STATE.grid[nr][nc] !== ch) continue;
-          seenAll[nr][nc] = true;
-          q.push([nr,nc]);
-          cells.push([nr,nc]);
+          if(seen[nr][nc]) continue;
+          if(STATE.grid[nr][nc]!==ch) continue;
+          seen[nr][nc]=true; q.push([nr,nc]); cells.push([nr,nc]);
         }
       }
 
-      if(cells.length !== 4) return;                 // 每塊 4 格
-      if(!VALID_SIGS[ch].has(sigOf(cells))) return;  // 形狀合法（含旋/鏡）
-      totalCnt[ch]++;                                // 計數
-      if(totalCnt[ch] > 2) return;                   // 任一種超過 2 → 失敗
+      // 每塊 4 格 & 形狀合法（含旋/鏡）
+      if(cells.length!==4) return;
+      if(!VALID_SIGS[ch].has(sigOf(cells))) return;
+
+      cnt[ch]++; if(cnt[ch]>2) return; // 任一種>2 立即失敗
     }
   }
 
-  // E) 每種剛好 2 塊（總共 10 塊）
-  for(const t of P_TYPES){ if(totalCnt[t] !== 2) return; }
+  // 各種剛好 2（總共 10 塊）
+  if(!['I','O','L','T','S'].every(t=>cnt[t]===2)) return;
 
-  // ---- 通關！----
+  // ✅ 通關
   STATE.solved.add(STATE.currentQ);
-  $('#statusImg').src = 'public/icons/status/btn_solved.svg';
+  $('#statusImg').src='public/icons/status/btn_solved.svg';
   updateLevelProgressForCurrentQ();
 
-  const lv = STATE.levels.find(l => STATE.currentQ>=l.range[0] && STATE.currentQ<=l.range[1]);
+  const lv=STATE.levels.find(l=>STATE.currentQ>=l.range[0]&&STATE.currentQ<=l.range[1]);
   if(lv && isLevelCleared(lv)){
-    $('#badgeBig').src = `public/badges_big/${lv.badge}_big.png`;
+    $('#badgeBig').src=`public/badges_big/${lv.badge}_big.png`;
     go('badge');
   }
   pushProgress();
