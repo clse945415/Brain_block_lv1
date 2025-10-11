@@ -100,6 +100,16 @@ function updateLevelProgressForCurrentQ(){
   $('#levelProgress').textContent = val;
 }
 
+function hexToRgba(hex, a=0.25){
+  if(!hex) return `rgba(0,0,0,${a})`;
+  let s = hex.replace('#','');
+  if(s.length===3) s = s.split('').map(x=>x+x).join('');
+  const r = parseInt(s.slice(0,2),16);
+  const g = parseInt(s.slice(2,4),16);
+  const b = parseInt(s.slice(4,6),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
 function drawBoard(){
   const cvs = $('#board');
   const ctx = cvs.getContext('2d');
@@ -112,30 +122,29 @@ function drawBoard(){
   const cell = Math.min(Math.floor((w-40)/8), Math.floor((h-40)/5));
   const ox = (w - cell*8)/2, oy = (h - cell*5)/2;
 
-  // 外框 + 內格線
+  // ===== 題目提示：用各自顏色的淡色底 =====
+  const target = STATE.puzzles[STATE.currentQ-1];
+  if(target){
+    for(let r=0;r<5;r++){
+      const row = target.rows[r] || '';
+      for(let c=0;c<8;c++){
+        const ch = row[c] || '.';
+        if('IOLTS'.includes(ch)){
+          ctx.fillStyle = hexToRgba(STATE.config.colors[ch], 0.25); // 25% 透明
+          ctx.fillRect(ox+c*cell+1, oy+r*cell+1, cell-2, cell-2);
+        }
+      }
+    }
+  }
+
+  // ===== 格線（放在提示之後，保持銳利） =====
   ctx.strokeStyle = STATE.config.colors.gridBorder;
   ctx.lineWidth = 2;
   ctx.strokeRect(ox, oy, cell*8, cell*5);
   for(let r=1;r<5;r++){ ctx.beginPath(); ctx.moveTo(ox, oy+r*cell); ctx.lineTo(ox+8*cell, oy+r*cell); ctx.stroke(); }
   for(let c=1;c<8;c++){ ctx.beginPath(); ctx.moveTo(ox+c*cell, oy); ctx.lineTo(ox+c*cell, oy+5*cell); ctx.stroke(); }
 
-  // 題目提示：淡灰描邊要填的格子 (依 puzzles.json rows)
-  const target = STATE.puzzles[STATE.currentQ-1];
-  if(target){
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-    for(let r=0;r<5;r++){
-      const row = target.rows[r] || '';
-      for(let c=0;c<8;c++){
-        const ch = row[c] || '.';
-        if('IOLTS'.includes(ch)){
-          ctx.strokeRect(ox+c*cell+3, oy+r*cell+3, cell-6, cell-6);
-        }
-      }
-    }
-  }
-
-  // 玩家著色
+  // ===== 玩家上色（不透明，覆蓋提示） =====
   for(let r=0;r<5;r++){
     for(let c=0;c<8;c++){
       const t = STATE.grid[r][c];
@@ -146,7 +155,6 @@ function drawBoard(){
     }
   }
 
-  // 點擊換算資料
   cvs.dataset.cell = JSON.stringify({ox,oy,cell});
 }
 
