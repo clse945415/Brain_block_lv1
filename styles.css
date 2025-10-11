@@ -160,3 +160,18 @@ body{
 .lb-row{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #eae6da}
 .lb-row:last-child{border-bottom:none}
 .lb-name{font-weight:700}
+
+/* 讓排行榜頁的 topbar 左鍵＋中標題＋右側留白排好 */
+#screen-leaderboard .topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;   /* 關鍵：不讓 <h1> 把按鈕擠掉 */
+  padding: 8px 10px;
+}
+
+/* 給返回圖示明確尺寸，沒載到圖也仍然有可點擊面積 */
+#screen-leaderboard .topbar .nav-btn img{
+  width:28px;
+  height:28px;
+  display:block;
+}
