@@ -44,26 +44,34 @@ function isLevelCleared(lv){ return countSolvedInRange(lv.range)===20; }
 
 function renderLevelList(){
   const ul = $('#levelList');
-  ul.innerHTML='';
+  ul.innerHTML = '';
   for(const lv of STATE.levels){
     const li = document.createElement('li');
-    li.className='level-item';
+    li.className = 'level-pill';
 
     const unlocked = isLevelCleared(lv)
       ? `public/badges/${lv.badge}_unlocked.png`
       : `public/badges/${lv.badge}_locked.svg`;
 
+    // 新增進度文字（title 右側顯示 0/20）
+    const progress = `${countSolvedInRange(lv.range)} / 20`;
+
     li.innerHTML = `
-      <div class="level-name">${lv.name}</div>
-      <div class="level-progress">${countSolvedInRange(lv.range)} / 20</div>
-      <img class="level-badge" src="${unlocked}" alt="badge">
-      <button class="level-enter" aria-label="進入關卡">
+      <div class="level-left">
+        <div class="level-title">${lv.name}</div>
+        <div class="level-progress">${progress}</div>
+      </div>
+
+      <div class="badge-circle" title="${isLevelCleared(lv) ? '已解鎖' : '未解鎖'}">
+        <img src="${unlocked}" alt="">
+      </div>
+
+      <button class="enter-circle" aria-label="進入 ${lv.name}">
         <img src="public/icons/nav/arrow_next.svg" alt="">
       </button>
     `;
 
-    li.querySelector('.level-enter').addEventListener('click', ()=>{
-      // 跳到該區間第一個未解題
+    li.querySelector('.enter-circle').addEventListener('click', ()=>{
       const [a,b] = lv.range;
       let q = a;
       for(let i=a;i<=b;i++){ if(!STATE.solved.has(i)) { q=i; break; } }
