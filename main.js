@@ -1,9 +1,9 @@
-// Brain Block - minimal playable build
+// Brain Block - playable build (題目顯示 + 上色作答)
 let STATE = {
   config:null, levels:null, puzzles:null,
   player:'', currentQ:1, selectedPiece:'I',
-  grid:[], // 5x8 current placed types ('.' empty or 'I','O','L','T','S')
-  solved: new Set(), // ids marked solved
+  grid:[], // 5x8 玩家作答 ('.' 或 'I','O','L','T','S')
+  solved: new Set(), // 已標記完成的題號
 };
 
 const $ = sel => document.querySelector(sel);
@@ -15,7 +15,9 @@ async function loadData(){
     fetch('data/levels.json').then(r=>r.json()),
     fetch('data/puzzles.json').then(r=>r.json()),
   ]);
-  STATE.config=config; STATE.levels=levels.levels; STATE.puzzles=puzzles.puzzles;
+  STATE.config=config;
+  STATE.levels=levels.levels;
+  STATE.puzzles=puzzles.puzzles;
 }
 
 function go(screenId){
@@ -23,6 +25,7 @@ function go(screenId){
   $('#screen-'+screenId).classList.add('active');
 }
 
+/* ---------- Cover ---------- */
 function initCover(){
   $('#btnStart').addEventListener('click', ()=>{
     const name = $('#playerName').value.trim();
@@ -33,65 +36,98 @@ function initCover(){
   });
 }
 
+/* ---------- Levels ---------- */
+function countSolvedInRange([a,b]){
+  let c=0; for(let i=a;i<=b;i++){ if(STATE.solved.has(i)) c++; } return c;
+}
+function isLevelCleared(lv){ return countSolvedInRange(lv.range)===20; }
+
 function renderLevelList(){
   const ul = $('#levelList');
   ul.innerHTML='';
   for(const lv of STATE.levels){
     const li = document.createElement('li');
     li.className='level-item';
-    // badge
-    const unlocked = isLevelCleared(lv) ? `public/badges/${lv.badge}_unlocked.png` : `public/badges/${lv.badge}_locked.svg`;
+
+    const unlocked = isLevelCleared(lv)
+      ? `public/badges/${lv.badge}_unlocked.png`
+      : `public/badges/${lv.badge}_locked.svg`;
+
     li.innerHTML = `
-      <div class="level-left">
-        <img src="${unlocked}">
-        <div>
-          <div>${lv.name}</div>
-          <div class="progress">${countSolvedInRange(lv.range)} / 20</div>
-        </div>
-      </div>
-      <div class="level-right">
-        <button class="nav-btn go-level">進入 <img src="public/icons/nav/arrow_next.svg" /></button>
-      </div>`;
-    li.querySelector('.go-level').addEventListener('click', ()=>{
-      // jump to first Q in range not yet solved (or start)
+      <div class="level-name">${lv.name}</div>
+      <div class="level-progress">${countSolvedInRange(lv.range)} / 20</div>
+      <img class="level-badge" src="${unlocked}" alt="badge">
+      <button class="level-enter" aria-label="進入關卡">
+        <img src="public/icons/nav/arrow_next.svg" alt="">
+      </button>
+    `;
+
+    li.querySelector('.level-enter').addEventListener('click', ()=>{
+      // 跳到該區間第一個未解題
       const [a,b] = lv.range;
       let q = a;
       for(let i=a;i<=b;i++){ if(!STATE.solved.has(i)) { q=i; break; } }
       openPuzzle(q);
     });
+
     ul.appendChild(li);
   }
 }
 
-function countSolvedInRange([a,b]){
-  let c=0; for(let i=a;i<=b;i++){ if(STATE.solved.has(i)) c++; } return c;
-}
-function isLevelCleared(lv){ return countSolvedInRange(lv.range)===20; }
-
+/* ---------- Puzzle ---------- */
 function openPuzzle(id){
   STATE.currentQ = id;
-  // init empty grid 5x8
+  // 初始化玩家作答盤
   STATE.grid = Array.from({length:5}, ()=>Array(8).fill('.'));
   $('#qNumber').textContent = id;
   $('#statusImg').src = 'public/icons/status/btn_unsolved.svg';
+  updateLevelProgressForCurrentQ();
   drawBoard();
   go('puzzle');
+}
+
+function updateLevelProgressForCurrentQ(){
+  const lv = STATE.levels.find(l => STATE.currentQ>=l.range[0] && STATE.currentQ<=l.range[1]);
+  const val = lv ? `${countSolvedInRange(lv.range)} / 20` : `${STATE.solved.size} / 100`;
+  $('#levelProgress').textContent = val;
 }
 
 function drawBoard(){
   const cvs = $('#board');
   const ctx = cvs.getContext('2d');
   const w=cvs.width, h=cvs.height;
+
+  ctx.clearRect(0,0,w,h);
   ctx.fillStyle = '#F7F7F7';
   ctx.fillRect(0,0,w,h);
+
   const cell = Math.min(Math.floor((w-40)/8), Math.floor((h-40)/5));
   const ox = (w - cell*8)/2, oy = (h - cell*5)/2;
-  // grid lines
+
+  // 外框 + 內格線
   ctx.strokeStyle = STATE.config.colors.gridBorder;
   ctx.lineWidth = 2;
-  for(let r=0;r<=5;r++){ ctx.beginPath(); ctx.moveTo(ox, oy+r*cell); ctx.lineTo(ox+8*cell, oy+r*cell); ctx.stroke(); }
-  for(let c=0;c<=8;c++){ ctx.beginPath(); ctx.moveTo(ox+c*cell, oy); ctx.lineTo(ox+c*cell, oy+5*cell); ctx.stroke(); }
-  // draw cells
+  ctx.strokeRect(ox, oy, cell*8, cell*5);
+  for(let r=1;r<5;r++){ ctx.beginPath(); ctx.moveTo(ox, oy+r*cell); ctx.lineTo(ox+8*cell, oy+r*cell); ctx.stroke(); }
+  for(let c=1;c<8;c++){ ctx.beginPath(); ctx.moveTo(ox+c*cell, oy); ctx.lineTo(ox+c*cell, oy+5*cell); ctx.stroke(); }
+
+  // 題目提示：淡灰描邊要填的格子 (依 puzzles.json rows)
+  const target = STATE.puzzles[STATE.currentQ-1];
+  if(target){
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    for(let r=0;r<5;r++){
+      const row = target.rows[r] || '';
+      for(let c=0;c<8;c++){
+        const ch = row[c] || '.';
+        if('IOLTS'.includes(ch)){
+          ctx.strokeRect(ox+c*cell+3, oy+r*cell+3, cell-6, cell-6);
+        }
+      }
+    }
+  }
+
+  // 玩家著色
   for(let r=0;r<5;r++){
     for(let c=0;c<8;c++){
       const t = STATE.grid[r][c];
@@ -101,67 +137,25 @@ function drawBoard(){
       }
     }
   }
-  // store for hit test
+
+  // 點擊換算資料
   cvs.dataset.cell = JSON.stringify({ox,oy,cell});
 }
 
-function placePieceAt(r,c,type){
-  const shape = getShape(type);
-  // simple try: place pivot at r,c; if out of bounds or collision -> ignore
-  for(const [dr,dc] of shape){
-    const rr=r+dr, cc=c+dc;
-    if(rr<0||rr>=5||cc<0||cc>=8) return false;
-    if(STATE.grid[rr][cc]!=='.') return false;
-  }
-  for(const [dr,dc] of shape){
-    STATE.grid[r+dr][c+dc]=type;
-  }
-  return true;
-}
-
-function getShape(t){
-  // shape returns coords relative to pivot 0,0. Default orientation up.
-  switch(t){
-    case 'I': return [[0,0],[1,0],[2,0],[3,0]];
-    case 'O': return [[0,0],[0,1],[1,0],[1,1]];
-    case 'L': return [[0,0],[1,0],[2,0],[2,1]];
-    case 'T': return [[0,0],[0,-1],[0,1],[1,0]];
-    case 'S': return [[0,0],[1,0],[1,1],[2,1]];
-  }
-  return [[0,0]];
-}
-
-// rotate 90deg (clockwise)
-function rot(shape){ return shape.map(([r,c])=>[-c, r]); }
-// flip horizontally
-function flip(shape){ return shape.map(([r,c])=>[r,-c]); }
-
-let currentShape = getShape('I');
-let rotatedTimes = 0, flipped=false;
-
 function bindToolbar(){
-  $$('.tool').forEach(b=>b.addEventListener('click', ()=>{
-    const t = b.dataset.piece;
-    if(t){
-      STATE.selectedPiece = t;
-      currentShape = getShape(t);
-      rotatedTimes=0; flipped=false;
-    }
-  }));
-  $('#btnClear').addEventListener('click', ()=>{
-    STATE.grid = Array.from({length:5}, ()=>Array(8).fill('.'));
-    $('#statusImg').src = 'public/icons/status/btn_unsolved.svg';
-    drawBoard();
+  // 工具列選擇
+  $$('#paintToolbar .tool').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      $$('#paintToolbar .tool').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      STATE.selectedPiece = btn.dataset.piece || 'I'; // '.' 為橡皮擦
+    });
   });
-  // keyboard: R rotate, F flip
-  document.addEventListener('keydown', (e)=>{
-    if(e.key==='r' || e.key==='R'){
-      currentShape = rot(currentShape); rotatedTimes=(rotatedTimes+1)%4;
-    }else if(e.key==='f' || e.key==='F'){
-      currentShape = flip(currentShape); flipped=!flipped;
-    }
-  });
-  // place on canvas click
+  // 預設選中 I
+  const first = $('#paintToolbar .tool[data-piece="I"]');
+  if(first){ first.classList.add('active'); }
+
+  // 棋盤點擊上色
   $('#board').addEventListener('click', (e)=>{
     const rect = e.target.getBoundingClientRect();
     const x = e.clientX - rect.left, y = e.clientY - rect.top;
@@ -170,11 +164,19 @@ function bindToolbar(){
     const c = Math.floor((x - meta.ox)/meta.cell);
     const r = Math.floor((y - meta.oy)/meta.cell);
     if(r<0||r>=5||c<0||c>=8) return;
-    const ok = placePieceAt(r,c, STATE.selectedPiece);
-    if(ok){ drawBoard(); checkSolved(); }
+
+    const t = STATE.selectedPiece;
+    STATE.grid[r][c] = (t === '.') ? '.' : t; // 橡皮擦 or 著色
+    drawBoard();
+    checkSolved();
   });
+
+  // 上/下一題
   $('#prevQ').addEventListener('click', ()=> navigateQ(-1));
   $('#nextQ').addEventListener('click', ()=> navigateQ(+1));
+
+  // 排行榜
+  $('#btnToLeaderboard').addEventListener('click', ()=> go('leaderboard'));
 }
 
 function navigateQ(delta){
@@ -185,11 +187,9 @@ function navigateQ(delta){
 }
 
 function checkSolved(){
-  // Compare current grid vs target pattern of currentQ (shape-only match)
   const target = STATE.puzzles[STATE.currentQ-1];
   if(!target) return;
   const tgt = target.rows;
-  // stringify grid to rows
   const rows = STATE.grid.map(r=>r.join(''));
   const normalize = s => s.replace(/[^IOLTS.]/g,'');
   const ok = rows.length===tgt.length && rows.every((row,i)=> normalize(row)===normalize(tgt[i]));
@@ -197,26 +197,28 @@ function checkSolved(){
     STATE.solved.add(STATE.currentQ);
     $('#statusImg').src = 'public/icons/status/btn_solved.svg';
     updateTotalProgress();
-    // if this was last in level -> show badge
+    updateLevelProgressForCurrentQ();
+
+    // 若完成一整關，顯示徽章
     const lv = STATE.levels.find(l=> STATE.currentQ>=l.range[0] && STATE.currentQ<=l.range[1]);
     if(lv && isLevelCleared(lv)){
       $('#badgeBig').src = `public/badges_big/${lv.badge}_big.png`;
       go('badge');
     }
-    // push progress to leaderboard
     pushProgress();
   }
 }
 
 function updateTotalProgress(){
-  $('#totalProgress').textContent = STATE.solved.size;
+  // 目前總進度顯示在 Puzzle header 右側區塊的關卡內進度
+  // 如需 0/100 顯示可額外放置元素；此處維持現有結構
 }
 
 async function pushProgress(){
   try{
     const url = STATE.config.leaderboardUrl;
     if(!url || !STATE.player) return;
-    // compute progress per level
+    // 每關進度
     const per = {};
     for(const lv of STATE.levels){
       per[`L${lv.level}`] = countSolvedInRange(lv.range);
@@ -229,6 +231,7 @@ async function pushProgress(){
   }catch(e){ console.warn('pushProgress failed', e); }
 }
 
+/* ---------- Leaderboard ---------- */
 async function loadLeaderboard(){
   const url = STATE.config.leaderboardUrl + '?top=50';
   const res = await fetch(url).then(r=>r.json()).catch(()=>({ok:false}));
@@ -242,18 +245,21 @@ async function loadLeaderboard(){
   });
 }
 
+/* ---------- Nav ---------- */
 function initNav(){
   $$('#screen-levels .topbar .nav-btn').forEach(btn=>btn.addEventListener('click',()=>go('cover')));
-  $$('#screen-puzzle .topbar .nav-btn').forEach(btn=>btn.addEventListener('click',()=>go('levels')));
+  $$('#screen-puzzle .topbar .nav-btn[data-go="levels"]').forEach(btn=>btn.addEventListener('click',()=>go('levels')));
   $$('#screen-badge .topbar .nav-btn').forEach(btn=>btn.addEventListener('click',()=>go('levels')));
   $('#btnBadgeNext').addEventListener('click', ()=>go('levels'));
 }
 
+/* ---------- Boot ---------- */
 (async function(){
   await loadData();
   initCover();
   bindToolbar();
   initNav();
-  updateTotalProgress();
   await loadLeaderboard();
+  // 初次進入時，若需要可預開第一關第一題
+  // openPuzzle(1);
 })();
