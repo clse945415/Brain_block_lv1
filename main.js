@@ -4,8 +4,9 @@ let STATE = {
   player:'', currentQ:1, selectedPiece:'I',
   grid:[], // 5x8 玩家作答 ('.' 或 'I','O','L','T','S')
   solved: new Set(), // 已標記完成的題號
+  // 多一個鎖定矩陣，true 表示題目給的格子
+  ..., locked: []
 };
-
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
@@ -117,8 +118,26 @@ const VALID_SIGS = Object.fromEntries(
 /* ---------- Puzzle ---------- */
 function openPuzzle(id){
   STATE.currentQ = id;
-  // 初始化玩家作答盤
-  STATE.grid = Array.from({length:5}, ()=>Array(8).fill('.'));
+
+  // 盤面 + 鎖定矩陣
+  STATE.grid   = Array.from({length:5}, ()=>Array(8).fill('.'));
+  STATE.locked = Array.from({length:5}, ()=>Array(8).fill(false));
+
+  // 讀取題目，直接上色並鎖定
+  const target = STATE.puzzles[id-1];
+  if(target && target.rows){
+    for(let r=0;r<5;r++){
+      const row = target.rows[r] || '';
+      for(let c=0;c<8;c++){
+        const ch = row[c] || '.';
+        if('IOLTS'.includes(ch)){
+          STATE.grid[r][c]   = ch;     // 題目顏色直接成為實際著色
+          STATE.locked[r][c] = true;   // 這格不可更動
+        }
+      }
+    }
+  }
+
   $('#qNumber').textContent = id;
   $('#statusImg').src = 'public/icons/status/btn_unsolved.svg';
   updateLevelProgressForCurrentQ();
@@ -154,21 +173,29 @@ function drawBoard(){
   const cell = Math.min(Math.floor((w-40)/8), Math.floor((h-40)/5));
   const ox = (w - cell*8)/2, oy = (h - cell*5)/2;
 
-  // ===== 題目提示：用各自顏色的淡色底 =====
-  const target = STATE.puzzles[STATE.currentQ-1];
-  if(target){
-    for(let r=0;r<5;r++){
-      const row = target.rows[r] || '';
-      for(let c=0;c<8;c++){
-        const ch = row[c] || '.';
-        if('IOLTS'.includes(ch)){
-          ctx.fillStyle = hexToRgba(STATE.config.colors[ch], 0.25); // 25% 透明
-          ctx.fillRect(ox+c*cell+1, oy+r*cell+1, cell-2, cell-2);
-        }
-      }
+// (1) 格線
+ctx.strokeStyle = STATE.config.colors.gridBorder;
+ctx.lineWidth = 2;
+ctx.strokeRect(ox, oy, cell*8, cell*5);
+for(let r=1;r<5;r++){ ... }
+for(let c=1;c<8;c++){ ... }
+
+// (2) 依 STATE.grid 上色（包含被鎖定的題目格與玩家新塗的格）
+for(let r=0;r<5;r++){
+  for(let c=0;c<8;c++){
+    const t = STATE.grid[r][c];
+    if(t!=='.'){
+      ctx.fillStyle = STATE.config.colors[t];
+      ctx.fillRect(ox+c*cell+1, oy+r*cell+1, cell-2, cell-2);
     }
   }
-
+}
+if (STATE.locked && STATE.locked[r][c]) {
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(ox+c*cell+1.5, oy+r*cell+1.5, cell-3, cell-3);
+}
+  
   // ===== 格線（放在提示之後，保持銳利） =====
   ctx.strokeStyle = STATE.config.colors.gridBorder;
   ctx.lineWidth = 2;
@@ -204,20 +231,23 @@ function bindToolbar(){
   if(first){ first.classList.add('active'); }
 
   // 棋盤點擊上色
-  $('#board').addEventListener('click', (e)=>{
-    const rect = e.target.getBoundingClientRect();
-    const x = e.clientX - rect.left, y = e.clientY - rect.top;
-    const meta = JSON.parse(e.target.dataset.cell || '{}');
-    if(!meta.cell) return;
-    const c = Math.floor((x - meta.ox)/meta.cell);
-    const r = Math.floor((y - meta.oy)/meta.cell);
-    if(r<0||r>=5||c<0||c>=8) return;
+$('#board').addEventListener('click', (e)=>{
+  const rect = e.target.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const meta = JSON.parse(e.target.dataset.cell || '{}');
+  if(!meta.cell) return;
+  const c = Math.floor((x - meta.ox)/meta.cell);
+  const r = Math.floor((y - meta.oy)/meta.cell);
+  if(r<0||r>=5||c<0||c>=8) return;
 
-    const t = STATE.selectedPiece;
-    STATE.grid[r][c] = (t === '.') ? '.' : t; // 橡皮擦 or 著色
-    drawBoard();
-    checkSolved();
-  });
+  // ★ 題目格鎖定：不可擦、不可改色
+  if (STATE.locked && STATE.locked[r][c]) return;
+
+  const t = STATE.selectedPiece;
+  STATE.grid[r][c] = (t === '.') ? '.' : t; // 橡皮擦 or 著色
+  drawBoard();
+  checkSolved();
+});
 
   // 上/下一題
   $('#prevQ').addEventListener('click', ()=> navigateQ(-1));
