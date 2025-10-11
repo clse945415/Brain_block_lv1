@@ -194,3 +194,43 @@ body{
   .lb-bars{ width:100%; }
   .lb-bars .bar span{ font-size:9px; }
 }
+
+/* --- Leaderboard: total 與進度條 --- */
+.lb-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.lb-total{
+  background:#fff;
+  color:#114a4d;
+  font-weight:800;
+  border:2px solid #eae6da;
+  border-radius:999px;
+  padding:4px 10px;
+  min-width:92px;            /* 例如 25 / 100 */
+  text-align:center;
+}
+
+.lb-bars{
+  display:flex;
+  gap:8px;
+  flex:1;
+  justify-content:flex-end;
+}
+
+.lb-bar{
+  width:84px;                /* 每關一條 */
+  height:12px;
+  border-radius:999px;
+  background:rgba(255,255,255,.14);
+  overflow:hidden;
+  box-shadow: inset 0 0 0 1px rgba(234,230,218,.6);
+}
+.lb-bar > i{
+  display:block;
+  height:100%;
+  width:0%;
+  background:#eae6da;        /* 會用 JS 覆蓋顏色與寬度 */
+}
