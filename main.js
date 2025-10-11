@@ -467,27 +467,6 @@ function initNav(){
   $$('#screen-badge .topbar .nav-btn').forEach(btn=>btn.addEventListener('click',()=>go('levels')));
   const btnBadgeNext=$('#btnBadgeNext');
   if(btnBadgeNext) btnBadgeNext.addEventListener('click',()=>go('levels'));
-  
-  const btnLevelsBack = document.querySelector('#screen-levels .topbar .nav-btn');
-  if(btnLevelsBack) btnLevelsBack.addEventListener('click', ()=> go('cover'));
-
-  const btnPuzzleBack = document.querySelector('#screen-puzzle .topbar .nav-btn[data-go="levels"]');
-  if(btnPuzzleBack) btnPuzzleBack.addEventListener('click', ()=> go('levels'));
-
-  const btnBadgeBack = document.querySelector('#screen-badge .topbar .nav-btn');
-  if(btnBadgeBack) btnBadgeBack.addEventListener('click', ()=> go('levels'));
-
-  const btnBadgeNext = $('#btnBadgeNext');
-  if(btnBadgeNext) btnBadgeNext.addEventListener('click', ()=> go('levels'));
-
-  // 排行榜的返回（**獨立綁定**，避免列表覆蓋或 fetch 失敗時卡住）
-  const btnLbBack = document.querySelector('#screen-leaderboard .topbar .nav-btn');
-  if(btnLbBack) btnLbBack.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); go('levels'); });
-
-  // 右上角🏆按鈕：先切到頁面，再載資料（避免載失敗鎖住）
-  const lbBtn = $('#btnToLeaderboard');
-  if(lbBtn) lbBtn.addEventListener('click', ()=>{
-    go('leaderboard');
     loadLeaderboard();
   });
 }
