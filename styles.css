@@ -235,3 +235,5 @@ body{
   background:#eae6da;        /* 會用 JS 覆蓋顏色與寬度 */
 }
 
+/* 只限制棋盤區的溢出，避免被外框陰影撐出 */
+#screen-puzzle .board-wrap { overflow: hidden; }
