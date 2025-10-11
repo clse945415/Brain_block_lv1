@@ -768,49 +768,50 @@ function injectPWAStyles(){
   const RATIO_W = 8, RATIO_H = 5; // 棋盤比例
   const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
 
-  function fitBoardMobile() {
-    if (!isMobile()) {
-      // 還原任何先前的行內樣式，桌機維持原樣
-      const board = document.getElementById('board');
-      if (board) { board.style.width = ''; board.style.height = ''; }
-      return;
-    }
+function fitBoardMobile() {
+  const board = document.getElementById('board');
+  const wrap  = board?.closest('.board-wrap');
+  if (!board || !wrap) return;
 
-    const board   = document.getElementById('board');
-    const wrap    = board?.closest('.board-wrap');
-    const topbar  = document.querySelector('#screen-puzzle .topbar');
-    const title   = document.querySelector('#screen-puzzle .puzzle-title');
-    const tools   = document.getElementById('paintToolbar');
-    const footer  = document.querySelector('#screen-puzzle .puzzle-footer');
+  const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+  if (!isMobile()) { board.style.width = ''; board.style.height = ''; return; }
 
-    if (!board || !wrap) return;
+  const topbar = document.querySelector('#screen-puzzle .topbar');
+  const title  = document.querySelector('#screen-puzzle .puzzle-title');
+  const tools  = document.getElementById('paintToolbar');
+  const footer = document.querySelector('#screen-puzzle .puzzle-footer');
 
-    // 1) 可用高度：視窗高扣掉上/下區塊與少量安全邊距
-    const topH    = (topbar?.offsetHeight || 0) + (title?.offsetHeight || 0);
-    const bottomH = (tools?.offsetHeight || 0) + (footer?.offsetHeight || 0);
-    const safeGap = 20; // 安全空隙，避免貼邊
-    const availH  = Math.max(120, window.innerHeight - topH - bottomH - safeGap);
+  // === 1) 取「真實可見高度與寬度」===
+  const viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const viewW = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
 
-    // 2) 受限於容器寬度
-    const wrapW   = wrap.clientWidth;
+  // 扣掉上/下區塊與安全邊距
+  const topH    = (topbar?.offsetHeight || 0) + (title?.offsetHeight || 0);
+  const bottomH = (tools?.offsetHeight || 0) + (footer?.offsetHeight || 0);
+  const safeGapY = 24;               // 上下安全邊距
+  const availH = Math.max(100, viewH - topH - bottomH - safeGapY);
 
-    // 3) 以 8:5 比例計算最終寬高（同時不超過容器寬、也不超過可用高）
-    const hByW    = wrapW * (RATIO_H / RATIO_W);      // 依寬推高
-    const targetH = Math.min(hByW, availH);           // 不能高過可用高度
-    const targetW = targetH * (RATIO_W / RATIO_H);    // 依高回推寬（保比例）
+  // === 2) 正確計算「容器能給棋盤的內部寬度」===
+  // wrap.clientWidth 含 padding，因此要扣 padding；同時也不能超過視窗可見寬
+  const cs = getComputedStyle(wrap);
+  const padL = parseFloat(cs.paddingLeft)  || 0;
+  const padR = parseFloat(cs.paddingRight) || 0;
+  const innerWrapW = Math.max(0, wrap.clientWidth - padL - padR);
 
-    // 4) 套用到 CSS 尺寸（不動 canvas 屬性寬高）
-    board.style.height = targetH + 'px';
-    board.style.width  = targetW + 'px';
-  }
+  const safeGapX = 24; // 左右安全邊距（含 safe-area 及你設計的留白）
+  const availW = Math.max(120, Math.min(innerWrapW, viewW - safeGapX));
 
-  // 事件：載入、視窗尺寸改變、方向改變時重新計算
-  window.addEventListener('resize', fitBoardMobile);
-  window.addEventListener('orientationchange', fitBoardMobile);
-  document.addEventListener('DOMContentLoaded', () => {
-    // 略延遲，等頂部/底部完成排版
-    setTimeout(fitBoardMobile, 0);
-    setTimeout(fitBoardMobile, 200);
+  // === 3) 依 8:5 比例決定最終尺寸（不超過可見高/寬）===
+  const RATIO_W = 8, RATIO_H = 5;
+  const hByW    = availW * (RATIO_H / RATIO_W);   // 以寬推高
+  const finalH  = Math.min(hByW, availH);         // 不能超過可見高
+  const finalW  = finalH * (RATIO_W / RATIO_H);   // 回推寬，保持比例
+
+  // === 4) 套用尺寸（只改行內 CSS）===
+  board.style.width  = finalW + 'px';
+  board.style.height = finalH + 'px';
+}
+
   });
 
   // 若你的程式有「切換到題目頁」的流程，呼叫一次：
