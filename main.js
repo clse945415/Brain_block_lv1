@@ -5,7 +5,7 @@ let STATE = {
   grid:[], // 5x8 玩家作答 ('.' 或 'I','O','L','T','S')
   solved: new Set(), // 已標記完成的題號
   // 多一個鎖定矩陣，true 表示題目給的格子
-  ..., locked: []
+  locked: [] //true表示題目格
 };
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
@@ -164,36 +164,41 @@ function hexToRgba(hex, a=0.25){
 function drawBoard(){
   const cvs = $('#board');
   const ctx = cvs.getContext('2d');
-  const w=cvs.width, h=cvs.height;
+  const w = cvs.width, h = cvs.height;
+  const H = 5, W = 8;
 
   ctx.clearRect(0,0,w,h);
   ctx.fillStyle = '#F7F7F7';
   ctx.fillRect(0,0,w,h);
 
   const cell = Math.min(Math.floor((w-40)/8), Math.floor((h-40)/5));
-  const ox = (w - cell*8)/2, oy = (h - cell*5)/2;
+  const ox = (w - cell*W)/2, oy = (h - cell*H)/2;
 
-// (1) 格線
-ctx.strokeStyle = STATE.config.colors.gridBorder;
-ctx.lineWidth = 2;
-ctx.strokeRect(ox, oy, cell*8, cell*5);
-for(let r=1;r<5;r++){ ... }
-for(let c=1;c<8;c++){ ... }
-
-// (2) 依 STATE.grid 上色（包含被鎖定的題目格與玩家新塗的格）
-for(let r=0;r<5;r++){
-  for(let c=0;c<8;c++){
-    const t = STATE.grid[r][c];
-    if(t!=='.'){
-      ctx.fillStyle = STATE.config.colors[t];
-      ctx.fillRect(ox+c*cell+1, oy+r*cell+1, cell-2, cell-2);
+  // === 依 grid 上色（包含題目鎖定格與玩家格） ===
+  for(let r=0;r<H;r++){
+    for(let c=0;c<W;c++){
+      const t = STATE.grid[r][c];
+      if(t!=='.'){
+        ctx.fillStyle = STATE.config.colors[t];
+        ctx.fillRect(ox+c*cell+1, oy+r*cell+1, cell-2, cell-2);
+        // 鎖定格描淡灰邊
+        if (STATE.locked && STATE.locked[r][c]) {
+          ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(ox+c*cell+1.5, oy+r*cell+1.5, cell-3, cell-3);
+        }
+      }
     }
   }
-}
-if (STATE.locked && STATE.locked[r][c]) {
-  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+
+  // === 畫格線 ===
+  ctx.strokeStyle = STATE.config.colors.gridBorder;
   ctx.lineWidth = 2;
-  ctx.strokeRect(ox+c*cell+1.5, oy+r*cell+1.5, cell-3, cell-3);
+  ctx.strokeRect(ox, oy, cell*W, cell*H);
+  for(let r=1;r<H;r++){ ctx.beginPath(); ctx.moveTo(ox, oy+r*cell); ctx.lineTo(ox+W*cell, oy+r*cell); ctx.stroke(); }
+  for(let c=1;c<W;c++){ ctx.beginPath(); ctx.moveTo(ox+c*cell, oy); ctx.lineTo(ox+c*cell, oy+H*cell); ctx.stroke(); }
+
+  cvs.dataset.cell = JSON.stringify({ox,oy,cell});
 }
   
   // ===== 格線（放在提示之後，保持銳利） =====
