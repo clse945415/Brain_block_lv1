@@ -237,3 +237,17 @@ body{
 
 /* 只限制棋盤區的溢出，避免被外框陰影撐出 */
 #screen-puzzle .board-wrap { overflow: hidden; }
+/* 避免整頁出現橫向捲動造成誤判 */
+html, body { overflow-x: hidden; }
+
+/* 容器不裁切棋盤、留一點內距但不影響計算 */
+.board-wrap {
+  overflow: visible;
+  padding-inline: 8px;      /* 若你想要更窄，設 4~8px */
+  margin: 0 auto;
+  max-width: 100dvw;        /* 不超過可見寬 */
+}
+
+/* 棋盤本身允許縮到容器以內 */
+#board { max-width: 100%; }
+
