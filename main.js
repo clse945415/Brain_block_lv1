@@ -1,4 +1,4 @@
-// Brain Block - playable build (題目上色+鎖定 / 玩家作答 / 驗證10塊)
+// Brain Block - playable build (題目上色+鎖定 / 玩家作答 / 驗證10塊 / 本地保存)
 let STATE = {
   config: null,
   levels: null,
@@ -6,17 +6,39 @@ let STATE = {
   player: '',
   currentQ: 1,
   selectedPiece: 'I',
-  grid: [],                 // 玩家作答 ('.' 或 'I','O','L','T','S')
-  solved: new Set(),        // 已完成題號
-  locked: []                // true 表題目格（不可更動）
+  grid: [],
+  solved: new Set(),
+  locked: []
 };
 
+const SAVE_KEY = 'brainblock_save_v1';
 const $  = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
+/* ---------- Local Save / Load ---------- */
+function saveProgressToLocal(){
+  try{
+    const data = {
+      player: STATE.player || '',
+      solved: Array.from(STATE.solved || [])
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  }catch(e){ console.warn('saveProgressToLocal failed', e); }
+}
+
+function loadProgressFromLocal(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    if(data.player) STATE.player = data.player;
+    if(Array.isArray(data.solved)) STATE.solved = new Set(data.solved);
+  }catch(e){ console.warn('loadProgressFromLocal failed', e); }
+}
+
 /* ---------- Load Data ---------- */
 async function loadData(){
-  const bust = 'ver=' + Date.now(); // 破快取
+  const bust = 'ver=' + Date.now();
   const [config, levels, puzzles] = await Promise.all([
     fetch('data/config.json?'+bust).then(r=>r.json()),
     fetch('data/levels.json?'+bust).then(r=>r.json()),
@@ -39,6 +61,7 @@ function initCover(){
     const name = $('#playerName').value.trim();
     if(!name){ alert('請輸入玩家名稱'); return; }
     STATE.player = name;
+    saveProgressToLocal(); // 儲存名稱
     renderLevelList();
     go('levels');
   });
@@ -56,13 +79,10 @@ function renderLevelList(){
   for(const lv of STATE.levels){
     const li = document.createElement('li');
     li.className = 'level-pill';
-
     const unlocked = isLevelCleared(lv)
       ? `public/badges/${lv.badge}_unlocked.png`
       : `public/badges/${lv.badge}_locked.svg`;
-
     const progress = `${countSolvedInRange(lv.range)} / 20`;
-
     li.innerHTML = `
       <div class="level-left">
         <div class="level-title">${lv.name}</div>
@@ -73,14 +93,12 @@ function renderLevelList(){
         <img src="public/icons/nav/arrow_next.svg" alt="">
       </button>
     `;
-
     li.querySelector('.enter-circle').addEventListener('click', ()=>{
       const [a,b] = lv.range;
       let q = a;
       for(let i=a;i<=b;i++){ if(!STATE.solved.has(i)) { q=i; break; } }
       openPuzzle(q);
     });
-
     ul.appendChild(li);
   }
 }
@@ -119,8 +137,6 @@ function openPuzzle(id){
   STATE.currentQ=id;
   STATE.grid  = Array.from({length:5},()=>Array(8).fill('.'));
   STATE.locked= Array.from({length:5},()=>Array(8).fill(false));
-
-  // 題目直接上色 + 鎖定
   const target=STATE.puzzles[id-1];
   if(target && target.rows){
     for(let r=0;r<5;r++){
@@ -134,7 +150,6 @@ function openPuzzle(id){
       }
     }
   }
-
   $('#qNumber').textContent=id;
   $('#statusImg').src='public/icons/status/btn_unsolved.svg';
   updateLevelProgressForCurrentQ();
@@ -186,7 +201,7 @@ function bindToolbar(){
     btn.addEventListener('click',()=>{
       $$('#paintToolbar .tool').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
-      STATE.selectedPiece = btn.dataset.piece || 'I'; // '.' 為橡皮擦
+      STATE.selectedPiece = btn.dataset.piece || 'I';
     });
   });
   const first=$('#paintToolbar .tool[data-piece="I"]');
@@ -200,17 +215,15 @@ function bindToolbar(){
     const c=Math.floor((x-meta.ox)/meta.cell);
     const r=Math.floor((y-meta.oy)/meta.cell);
     if(r<0||r>=5||c<0||c>=8) return;
-    if(STATE.locked[r][c]) return; // 鎖定格不可改
+    if(STATE.locked[r][c]) return;
     const t=STATE.selectedPiece;
     STATE.grid[r][c] = (t === '.') ? '.' : t;
     drawBoard(); checkSolved();
   });
 
-  // 上/下一題
   $('#prevQ').addEventListener('click', ()=> navigateQ(-1));
   $('#nextQ').addEventListener('click', ()=> navigateQ(+1));
 
-  // 排行榜按鈕（頁面沒有時不報錯）
   const lbBtn = $('#btnToLeaderboard');
   if (lbBtn) lbBtn.addEventListener('click', ()=> go('leaderboard'));
 }
@@ -222,26 +235,23 @@ function navigateQ(delta){
   openPuzzle(q);
 }
 
-/* ---------- 驗證：整盤全滿 + 共10塊 + I/O/L/T/S各2 ---------- */
+/* ---------- 驗證 / 通關 ---------- */
 function checkSolved(){
   const H=5, W=8;
-
-  // A) 全滿 + 題目鎖定格未被改色
   const target = STATE.puzzles[STATE.currentQ-1];
   const tgtRows = target ? target.rows : null;
   for(let r=0;r<H;r++){
     for(let c=0;c<W;c++){
       const ch = STATE.grid[r][c];
-      if(ch==='.') return; // 尚未填滿
+      if(ch==='.') return;
       if(tgtRows && STATE.locked[r][c]) {
         const need = (tgtRows[r] || '')[c] || '.';
-        if(ch !== need) return; // 題目格被改
+        if(ch !== need) return;
       }
-      if(!['I','O','L','T','S'].includes(ch)) return;
     }
   }
 
-  // B) 準備所有合法形狀的所有朝向（座標）
+  // 精確鋪滿驗證
   const rot = shape => shape.map(([r,c])=>[c,-r]);
   const flip = shape => shape.map(([r,c])=>[r,-c]);
   const normalize = shape => {
@@ -269,13 +279,10 @@ function checkSolved(){
   };
   const ORIENTS = Object.fromEntries(['I','O','L','T','S'].map(t=>[t, uniqShapes(BASE[t])]));
 
-  // C) 產生所有「候選放置」：符合邊界、棋盤字母一致的 4 格組合
-  //    每個候選包含：{cells:[idx...4], type:'I'|...}
   const idx = (r,c)=> r*W + c;
   const CAND = [];
   for (const t of ['I','O','L','T','S']){
     for (const shape of ORIENTS[t]){
-      // 把 shape 視為相對座標，嘗試所有左上角位移
       for(let r0=0;r0<H;r0++){
         for(let c0=0;c0<W;c0++){
           let ok=true, cells=[];
@@ -286,7 +293,6 @@ function checkSolved(){
             cells.push(idx(r,c));
           }
           if(ok){
-            // 去重（同一組 4 格可能由不同錨點生成）
             cells.sort((a,b)=>a-b);
             const key = t + ':' + cells.join(',');
             if(!CAND._seen){ CAND._seen=new Set(); }
@@ -299,68 +305,54 @@ function checkSolved(){
       }
     }
   }
-  if (CAND.length === 0) return; // 沒任何可用放置
+  if (CAND.length === 0) return;
 
-  // 建索引：每個 cell -> 哪些候選涵蓋它
   const cellToCand = Array.from({length:H*W}, ()=>[]);
   CAND.forEach((cand, i)=> cand.cells.forEach(ci=> cellToCand[ci].push(i)));
 
-  // D) 用精確鋪滿（Exact Cover）搜尋 10 塊，並且每種剛好 2 塊
   const usedCell = Array(H*W).fill(false);
   const usedCand = Array(CAND.length).fill(false);
   const countByType = {I:0,O:0,L:0,T:0,S:0};
   let picked = 0;
 
-  // 選擇下一個尚未覆蓋的格，採用最少候選（啟發式剪枝）
   function nextCell(){
     let best=-1, list=null;
     for(let i=0;i<H*W;i++){
       if(usedCell[i]) continue;
       const arr = cellToCand[i].filter(ci=>{
         if(usedCand[ci]) return false;
-        // 候選不能碰到已佔格
         for(const cc of CAND[ci].cells) if(usedCell[cc]) return false;
-        // 類型不能超過 2
         if(countByType[CAND[ci].type] >= 2) return false;
         return true;
       });
-      if(arr.length===0) return {i, options:[]}; // 死路
+      if(arr.length===0) return {i, options:[]};
       if(best===-1 || arr.length < best){
         best = arr.length;
         list = {i, options:arr};
         if(best===1) break;
       }
     }
-    return list; // 可能為 null（全部覆蓋）
+    return list;
   }
 
   function dfs(){
     if (picked === 10){
-      // 全部覆蓋了嗎？
       for(let i=0;i<H*W;i++) if(!usedCell[i]) return false;
       return ['I','O','L','T','S'].every(t=>countByType[t]===2);
     }
     const choice = nextCell();
     if(!choice) return false;
     const {options} = choice;
-    // 沒選項：失敗
     if(options.length===0) return false;
 
-    // 逐一嘗試候選
     for(const ci of options){
       const cand = CAND[ci];
-      // second check overlap
       let clash=false; for(const cc of cand.cells){ if(usedCell[cc]){ clash=true; break; } }
       if(clash) continue;
 
-      // 放
       usedCand[ci]=true; picked++; countByType[cand.type]++;
       cand.cells.forEach(cc=> usedCell[cc]=true);
-
-      // 剪枝：任何類型超過 2、或剩餘形狀不足以達到 10-picked，都會自動在遞迴中排除
       if (countByType[cand.type] <= 2 && dfs()) return true;
-
-      // 撤銷
       cand.cells.forEach(cc=> usedCell[cc]=false);
       countByType[cand.type]--;
       picked--; usedCand[ci]=false;
@@ -375,115 +367,29 @@ function checkSolved(){
   STATE.solved.add(STATE.currentQ);
   $('#statusImg').src='public/icons/status/btn_solved.svg';
   updateLevelProgressForCurrentQ();
-
-  // 先本地存檔（避免網路失敗）
-  if (typeof saveProgressToLocal === 'function') saveProgressToLocal();
+  saveProgressToLocal(); // ← 儲存通關進度
 
   const lv=STATE.levels.find(l=>STATE.currentQ>=l.range[0]&&STATE.currentQ<=l.range[1]);
   if(lv && isLevelCleared(lv)){
     $('#badgeBig').src=`public/badges_big/${lv.badge}_big.png`;
     go('badge');
   }
-  pushProgress();
-}
-/* ---------- Leaderboard ---------- */
-async function pushProgress(){
-  try{
-    const url = STATE.config && STATE.config.leaderboardUrl;
-    if(!url || !STATE.player){ console.warn('leaderboard disabled'); return; }
-
-    // 逐關進度（L1~L5 各 0-20）
-    const per = {};
-    for(const lv of STATE.levels){
-      per[`L${lv.level}`] = countSolvedInRange(lv.range);
-    }
-
-    const payload = {
-      secret: STATE.config.sharedSecret || '',
-      name: STATE.player,
-      progress: per
-    };
-
-    const res = await fetch(url, {
-      method: 'POST',
-      mode: 'cors',        // 伺服器需回 Access-Control-Allow-Origin
-      keepalive: true,     // 避免頁面切換中斷
-      headers: { 'content-type':'application/json', 'accept':'application/json' },
-      body: JSON.stringify(payload)
-    }).catch(err => ({_err:err}));
-
-    if(res && res.ok){
-      // 可選：成功後再刷新一次排行榜（若此時在排行榜頁）
-      if(document.querySelector('#screen-leaderboard').classList.contains('active')){
-        loadLeaderboard();
-      }
-    }else{
-      console.warn('pushProgress failed', res && (res.status || res._err));
-    }
-  }catch(e){
-    console.warn('pushProgress exception', e);
-  }
 }
 
+/* ---------- Leaderboard (暫保留) ---------- */
 async function loadLeaderboard(){
   const list = $('#leaderboardList');
-  list.innerHTML = '讀取中…';
-
-  const url = STATE.config && STATE.config.leaderboardUrl;
-  if(!url){ list.textContent = '排行榜未啟用'; return; }
-
-  try{
-    const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'top=50', {
-      method: 'GET',
-      mode: 'cors',
-      headers: { 'accept':'application/json' }
-    });
-
-    let data = null;
-    try { data = await res.json(); } catch { /* 不是 JSON */ }
-
-    if(!res.ok || !data || data.ok === false || !Array.isArray(data.players)){
-      list.textContent = '讀取失敗';
-      return;
-    }
-
-    list.innerHTML = '';
-    data.players.forEach(p=>{
-      const row = document.createElement('div');
-      row.className = 'lb-row';
-      row.innerHTML = `<div class="lb-name">${p.rank}. ${p.name}</div><div>${p.total_cleared}</div>`;
-      list.appendChild(row);
-    });
-  }catch(e){
-    console.warn('loadLeaderboard failed', e);
-    list.textContent = '讀取失敗';
-  }
+  if(!list) return;
+  list.textContent = '排行榜暫不提供或伺服器離線';
 }
 
 /* ---------- Nav ---------- */
 function initNav(){
-  // 固定返回
-  $$('#screen-levels .topbar .nav-btn').forEach(btn =>
-    btn.addEventListener('click', () => go('cover'))
-  );
-  $$('#screen-puzzle .topbar .nav-btn[data-go="levels"]').forEach(btn =>
-    btn.addEventListener('click', () => go('levels'))
-  );
-  $$('#screen-badge .topbar .nav-btn').forEach(btn =>
-    btn.addEventListener('click', () => go('levels'))
-  );
-
+  $$('#screen-levels .topbar .nav-btn').forEach(btn => btn.addEventListener('click', () => go('cover')));
+  $$('#screen-puzzle .topbar .nav-btn[data-go="levels"]').forEach(btn => btn.addEventListener('click', () => go('levels')));
+  $$('#screen-badge .topbar .nav-btn').forEach(btn => btn.addEventListener('click', () => go('levels')));
   const btnBadgeNext = $('#btnBadgeNext');
   if (btnBadgeNext) btnBadgeNext.addEventListener('click', () => go('levels'));
-
-  // 右上角🏆：先切頁再載資料，避免讀取失敗卡住
-  const lbBtn = $('#btnToLeaderboard');
-  if (lbBtn) lbBtn.addEventListener('click', () => {
-    go('leaderboard');
-    loadLeaderboard();
-  });
-
-  // 排行榜頁左上返回
   const lbBack = document.querySelector('#screen-leaderboard .topbar .nav-btn');
   if (lbBack) lbBack.addEventListener('click', () => go('levels'));
 }
@@ -491,9 +397,11 @@ function initNav(){
 /* ---------- Boot ---------- */
 (async function(){
   await loadData();
+  loadProgressFromLocal(); // ← 載入舊紀錄
+  const nameInput = $('#playerName');
+  if (nameInput && STATE.player) nameInput.value = STATE.player; // 顯示舊名字
   initCover();
   bindToolbar();
   initNav();
   await loadLeaderboard();
-  // openPuzzle(1); // 如需預開第一題
 })();
