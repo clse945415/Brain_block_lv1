@@ -459,59 +459,53 @@ async function pushProgress(){
   }
 }
 
-function loadLeaderboard(){
+async function loadLeaderboard(){
   const list = $('#leaderboardList');
   if (!list) return;
   list.textContent = '讀取中…';
 
-  const base = STATE.config && STATE.config.leaderboardUrl;
-  if (!base){ list.textContent = '排行榜未啟用'; return; }
+  const url = STATE.config && STATE.config.leaderboardUrl;
+  if (!url) { list.textContent = '排行榜未啟用'; return; }
 
-  // 先清掉舊 callback
-  const cbName = '__bb_lb_cb';
-  if (window[cbName]) delete window[cbName];
+  try {
+    // 只用 JSON：不要 callback
+    const api = url + (url.includes('?') ? '&' : '?') + 'top=50&_ts=' + Date.now();
+    const res = await fetch(api, {
+      method: 'GET',
+      headers: { 'accept': 'application/json' }
+    });
 
-  window[cbName] = function(data){
-    try{
-      // 你的 doGet 會回 { ok:true, data:[...] }
-      const rows = data && (data.data || data.players);
-      if (!Array.isArray(rows)) {
-        list.textContent = '讀取失敗';
-        return;
-      }
-      list.innerHTML = '';
-      rows.forEach((r, i)=>{
-        const name  = r.player_name || r.name || `玩家${i+1}`;
-        const total = Number(r.total_cleared || r.total || 0);
-        const ltxt  = ['L1','L2','L3','L4','L5'].map(k=>{
-          const v = String(r[k] ?? '').toLowerCase();
-          return (v === 'true' || v === '1' || v === 'yes') ? '✔' : '✖';
-        }).join(' ');
-        const row = document.createElement('div');
-        row.className = 'lb-row';
-        row.innerHTML = `
-          <div class="lb-name">${i+1}. ${name}</div>
-          <div>${total}</div>
-          <div style="opacity:.8;min-width:6em;text-align:right">${ltxt}</div>
-        `;
-        list.appendChild(row);
-      });
-    }catch(e){
-      list.textContent = '讀取失敗';
-    }finally{
-      // 清理 script
-      const tag = document.getElementById('bb-lb-jsonp');
-      if (tag && tag.parentNode) tag.parentNode.removeChild(tag);
-      delete window[cbName];
+    let data = null;
+    try { data = await res.json(); } catch(e){}
+
+    if (!res.ok || !data || data.ok === false || !Array.isArray(data.data)) {
+      console.warn('[leaderboard] bad response', res.status, data);
+      list.textContent = '排行榜暫不提供或伺服器離線';
+      return;
     }
-  };
 
-  const src = base + (base.includes('?') ? '&' : '?') + 'top=50&callback=' + cbName;
-  const s = document.createElement('script');
-  s.id = 'bb-lb-jsonp';
-  s.src = src;
-  s.onerror = () => { list.textContent = '讀取失敗'; };
-  document.body.appendChild(s);
+    const rows = data.data;
+    list.innerHTML = '';
+    rows.forEach((r, i) => {
+      const name  = r.player_name || `玩家${i+1}`;
+      const total = Number(r.total_cleared || 0);
+      // 你目前表是 L1~L5 儲存「已解數量」，這裡就顯示 x/20
+      const lvStr = [r.L1, r.L2, r.L3, r.L4, r.L5]
+        .map(v => `${Number(v)||0}/20`).join('  ');
+
+      const row = document.createElement('div');
+      row.className = 'lb-row';
+      row.innerHTML = `
+        <div class="lb-name">${i+1}. ${name}</div>
+        <div>${total}</div>
+        <div style="opacity:.8; min-width:9em; text-align:right">${lvStr}</div>
+      `;
+      list.appendChild(row);
+    });
+  } catch (e) {
+    console.warn('loadLeaderboard failed', e);
+    list.textContent = '排行榜暫不提供或伺服器離線';
+  }
 }
 
 
