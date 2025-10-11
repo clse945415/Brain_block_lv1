@@ -4,9 +4,24 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Brain Block / 脳ブロック</title>
+
+  <!-- 既有：網站小圖標 -->
   <link rel="icon" href="public/app-icon/app_icon.png" />
+
+  <!-- ✅ PWA 必備：Manifest + 主題色 -->
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#1C6F73" />
+
+  <!-- ✅ iOS：加入主畫面圖示與全螢幕樣式 -->
+  <link rel="apple-touch-icon" href="public/icons/app-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <!-- （可選）顯示於 iOS 主畫面名稱，預設會用 <title> -->
+  <!-- <meta name="apple-mobile-web-app-title" content="Brain Block" /> -->
+
   <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
   <!-- Cover -->
   <section id="screen-cover" class="screen active">
