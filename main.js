@@ -426,36 +426,34 @@ async function pushProgress(){
       return; 
     }
 
-    // 目前總通關數
     const totalCleared = STATE.solved.size;
-
-    // 目前這題屬於哪個 Level（1~5）
     const lv = STATE.levels.find(l => STATE.currentQ>=l.range[0] && STATE.currentQ<=l.range[1]);
-    const levelIndex = lv ? Number(lv.level) : null;      // 1..5 or null
+    const levelIndex = lv ? Number(lv.level) : null;
 
     const payload = {
       secret: STATE.config.sharedSecret || '',
-      player_name: STATE.player,              // 後端期待的 key
-      total_cleared: totalCleared,            // 0~100
-      level_cleared: levelIndex,              // 若剛好全破某一關，後端會把 L1~L5 記 True
-      puzzle_id: STATE.currentQ               // 可用於記錄最後通關題號
+      player_name: STATE.player,
+      total_cleared: totalCleared,   // 0~100
+      level_cleared: levelIndex,     // 1..5（完成該關時你後端會打勾）
+      puzzle_id: STATE.currentQ
     };
 
-    console.log('[pushProgress] POST', payload);
+    // ---- 優先：sendBeacon（不會預檢，最穩定）----
+    const data = new Blob([JSON.stringify(payload)], { type: 'text/plain;charset=UTF-8' });
+    if (navigator.sendBeacon) {
+      const ok = navigator.sendBeacon(url, data);
+      if (ok) return;
+      // sendBeacon 回 false 才走備援
+    }
 
-    const res = await fetch(url, {
+    // ---- 備援：no-cors + text/plain（同樣不預檢）----
+    fetch(url, {
       method: 'POST',
-      mode: 'cors',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body: JSON.stringify(payload),
       keepalive: true,
-      headers: { 'content-type':'application/json', 'accept':'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    // 不阻塞主流程：只做紀錄
-    let j = null;
-    try { j = await res.json(); } catch {}
-    console.log('[pushProgress] status', res.status, j);
-
+    }).catch(()=>{});
   }catch(e){
     console.warn('pushProgress exception', e);
   }
