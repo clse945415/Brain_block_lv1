@@ -1,10 +1,14 @@
 // Brain Block - playable build (題目上色+鎖定 / 玩家作答 / 驗證10塊)
 let STATE = {
-  config:null, levels:null, puzzles:null,
-  player:'', currentQ:1, selectedPiece:'I',
-  grid:[],                 // 玩家作答 ('.' 或 'I','O','L','T','S')
-  solved:new Set(),        // 已完成題號
-  locked:[]                // true 表題目格（不可改）
+  config: null,
+  levels: null,
+  puzzles: null,
+  player: '',
+  currentQ: 1,
+  selectedPiece: 'I',
+  grid: [],                 // 玩家作答 ('.' 或 'I','O','L','T','S')
+  solved: new Set(),        // 已完成題號
+  locked: []                // true 表題目格（不可更動）
 };
 
 const $  = sel => document.querySelector(sel);
@@ -12,14 +16,15 @@ const $$ = sel => Array.from(document.querySelectorAll(sel));
 
 /* ---------- Load Data ---------- */
 async function loadData(){
+  const bust = 'ver=' + Date.now(); // 破快取
   const [config, levels, puzzles] = await Promise.all([
-    fetch('data/config.json').then(r=>r.json()),
-    fetch('data/levels.json').then(r=>r.json()),
-    fetch('data/puzzles.json').then(r=>r.json()),
+    fetch('data/config.json?'+bust).then(r=>r.json()),
+    fetch('data/levels.json?'+bust).then(r=>r.json()),
+    fetch('data/puzzles.json?'+bust).then(r=>r.json()),
   ]);
-  STATE.config=config;
-  STATE.levels=levels.levels;
-  STATE.puzzles=puzzles.puzzles;
+  STATE.config  = config;
+  STATE.levels  = levels.levels;
+  STATE.puzzles = puzzles.puzzles;
 }
 
 /* ---------- Page Switch ---------- */
@@ -112,9 +117,10 @@ const VALID_SIGS=Object.fromEntries(P_TYPES.map(t=>[t,new Set(allOrientations(BA
 /* ---------- Puzzle ---------- */
 function openPuzzle(id){
   STATE.currentQ=id;
-  STATE.grid=Array.from({length:5},()=>Array(8).fill('.'));
-  STATE.locked=Array.from({length:5},()=>Array(8).fill(false));
+  STATE.grid  = Array.from({length:5},()=>Array(8).fill('.'));
+  STATE.locked= Array.from({length:5},()=>Array(8).fill(false));
 
+  // 題目直接上色 + 鎖定
   const target=STATE.puzzles[id-1];
   if(target && target.rows){
     for(let r=0;r<5;r++){
@@ -180,7 +186,7 @@ function bindToolbar(){
     btn.addEventListener('click',()=>{
       $$('#paintToolbar .tool').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
-      STATE.selectedPiece=btn.dataset.piece||'I';
+      STATE.selectedPiece = btn.dataset.piece || 'I'; // '.' 為橡皮擦
     });
   });
   const first=$('#paintToolbar .tool[data-piece="I"]');
@@ -188,7 +194,7 @@ function bindToolbar(){
 
   $('#board').addEventListener('click',e=>{
     const rect=e.target.getBoundingClientRect();
-    const x=e.clientX-rect.left,y=e.clientY-rect.top;
+    const x=e.clientX-rect.left, y=e.clientY-rect.top;
     const meta=JSON.parse(e.target.dataset.cell||'{}');
     if(!meta.cell) return;
     const c=Math.floor((x-meta.ox)/meta.cell);
@@ -196,12 +202,17 @@ function bindToolbar(){
     if(r<0||r>=5||c<0||c>=8) return;
     if(STATE.locked[r][c]) return; // 鎖定格不可改
     const t=STATE.selectedPiece;
-    STATE.grid[r][c]=(t==='.‘)?'.':t;
-    drawBoard();checkSolved();
+    STATE.grid[r][c] = (t === '.') ? '.' : t;
+    drawBoard(); checkSolved();
   });
 
-  $('#prevQ').addEventListener('click',()=>navigateQ(-1));
-  $('#nextQ').addEventListener('click',()=>navigateQ(+1));
+  // 上/下一題
+  $('#prevQ').addEventListener('click', ()=> navigateQ(-1));
+  $('#nextQ').addEventListener('click', ()=> navigateQ(+1));
+
+  // 排行榜按鈕（頁面沒有時不報錯）
+  const lbBtn = $('#btnToLeaderboard');
+  if (lbBtn) lbBtn.addEventListener('click', ()=> go('leaderboard'));
 }
 
 function navigateQ(delta){
@@ -213,10 +224,14 @@ function navigateQ(delta){
 
 /* ---------- 驗證：整盤全滿 + 共10塊 + I/O/L/T/S各2 ---------- */
 function checkSolved(){
-  const H=5,W=8,dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  const H=5, W=8, dirs=[[1,0],[-1,0],[0,1],[0,-1]];
 
-  // 全滿
-  for(let r=0;r<H;r++) for(let c=0;c<W;c++) if(STATE.grid[r][c]==='.') return;
+  // 全滿 40 格
+  for(let r=0;r<H;r++){
+    for(let c=0;c<W;c++){
+      if(STATE.grid[r][c]==='.') return;
+    }
+  }
 
   const seen=Array.from({length:H},()=>Array(W).fill(false));
   const cnt={I:0,O:0,L:0,T:0,S:0}; let total=0;
@@ -234,23 +249,25 @@ function checkSolved(){
       if(ch==='.'||seen[r][c]) continue;
       if(!P_TYPES.includes(ch)) return;
 
+      // BFS 取同字母連通塊
       const q=[[r,c]]; seen[r][c]=true; const cells=[[r,c]];
       while(q.length){
         const [rr,cc]=q.shift();
         for(const [dr,dc] of dirs){
-          const nr=rr+dr,nc=cc+dc;
+          const nr=rr+dr, nc=cc+dc;
           if(nr<0||nr>=H||nc<0||nc>=W) continue;
           if(seen[nr][nc]) continue;
           if(STATE.grid[nr][nc]!==ch) continue;
-          seen[nr][nc]=true;q.push([nr,nc]);cells.push([nr,nc]);
+          seen[nr][nc]=true; q.push([nr,nc]); cells.push([nr,nc]);
         }
       }
 
+      // 每塊 4 格 + 形狀合法
       if(cells.length!==4) return;
       if(!VALID_SIGS[ch].has(sigOf(cells))) return;
 
       cnt[ch]++; total++;
-      if(cnt[ch]>2||total>10) return;
+      if(cnt[ch]>2 || total>10) return;
     }
   }
 
@@ -263,7 +280,7 @@ function checkSolved(){
   updateLevelProgressForCurrentQ();
 
   const lv=STATE.levels.find(l=>STATE.currentQ>=l.range[0]&&STATE.currentQ<=l.range[1]);
-  if(lv&&isLevelCleared(lv)){
+  if(lv && isLevelCleared(lv)){
     $('#badgeBig').src=`public/badges_big/${lv.badge}_big.png`;
     go('badge');
   }
@@ -274,7 +291,7 @@ function checkSolved(){
 async function pushProgress(){
   try{
     const url=STATE.config.leaderboardUrl;
-    if(!url||!STATE.player) return;
+    if(!url || !STATE.player) return;
     const per={};
     for(const lv of STATE.levels) per[`L${lv.level}`]=countSolvedInRange(lv.range);
     await fetch(url,{
@@ -282,7 +299,7 @@ async function pushProgress(){
       headers:{'content-type':'application/json'},
       body:JSON.stringify({secret:STATE.config.sharedSecret,name:STATE.player,progress:per})
     });
-  }catch(e){console.warn('pushProgress failed',e);}
+  }catch(e){ console.warn('pushProgress failed', e); }
 }
 
 async function loadLeaderboard(){
@@ -314,5 +331,5 @@ function initNav(){
   bindToolbar();
   initNav();
   await loadLeaderboard();
-  // openPuzzle(1); // 如需預設開第一題
+  // openPuzzle(1); // 如需預開第一題
 })();
