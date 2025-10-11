@@ -1,4 +1,4 @@
-// Brain Block - playable build (題目上色+鎖定 / 玩家作答 / 驗證10塊 / 本地保存)
+// Brain Block - playable build (題目上色+鎖定 / 玩家作答保存 / 驗證10塊 / 安全排行榜)
 let STATE = {
   config: null,
   levels: null,
@@ -6,39 +6,64 @@ let STATE = {
   player: '',
   currentQ: 1,
   selectedPiece: 'I',
-  grid: [],
-  solved: new Set(),
-  locked: []
+  grid: [],             // 當前棋盤（含題目鎖定與玩家著色）
+  locked: [],           // true 表題目格（不可更動）
+  solved: new Set(),    // 已完成題號
 };
 
-const SAVE_KEY = 'brainblock_save_v1';
 const $  = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
-/* ---------- Local Save / Load ---------- */
-function saveProgressToLocal(){
+/* ======================= Local Save / Load ======================= */
+const SAVE_KEY = 'brainblock_save_v2';
+// 保存內容：{ player:string, solved:number[], answers: { [qid:number]: "5行*8字" } }
+function saveAll(){
   try{
     const data = {
       player: STATE.player || '',
-      solved: Array.from(STATE.solved || [])
+      solved: Array.from(STATE.solved || []),
+      answers: _collectAnswers()
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-  }catch(e){ console.warn('saveProgressToLocal failed', e); }
+  }catch(e){ console.warn('saveAll failed', e); }
 }
-
-function loadProgressFromLocal(){
+function loadAll(){
   try{
     const raw = localStorage.getItem(SAVE_KEY);
-    if(!raw) return;
+    if(!raw) return {player:'', solved:[], answers:{}};
     const data = JSON.parse(raw);
-    if(data.player) STATE.player = data.player;
-    if(Array.isArray(data.solved)) STATE.solved = new Set(data.solved);
-  }catch(e){ console.warn('loadProgressFromLocal failed', e); }
+    return {
+      player: data.player || '',
+      solved: Array.isArray(data.solved) ? data.solved : [],
+      answers: (data.answers && typeof data.answers==='object') ? data.answers : {}
+    };
+  }catch(e){
+    console.warn('loadAll failed', e);
+    return {player:'', solved:[], answers:{}};
+  }
 }
+// 只保存「玩家可改的格子」：題目鎖定格用 '.'，可改格用 I/O/L/T/S
+function _collectAnswers(){
+  const out = {};
+  const q = STATE.currentQ;
+  if (!q || !STATE.grid || !STATE.locked) return _answersCache;
+  const H=5, W=8;
+  let rows = [];
+  for(let r=0;r<H;r++){
+    let line = '';
+    for(let c=0;c<W;c++){
+      line += STATE.locked[r][c] ? '.' : (STATE.grid[r][c]||'.');
+    }
+    rows.push(line);
+  }
+  _answersCache[q] = rows.join('\n');
+  return _answersCache;
+}
+let _answersCache = {};   // 啟動時從 localStorage 載入
 
-/* ---------- Load Data ---------- */
+/* ========================== Data load =========================== */
 async function loadData(){
-  const bust = 'ver=' + Date.now();
+  const bust = 'ver=' + Date.now(); // 防快取
   const [config, levels, puzzles] = await Promise.all([
     fetch('data/config.json?'+bust).then(r=>r.json()),
     fetch('data/levels.json?'+bust).then(r=>r.json()),
@@ -49,40 +74,42 @@ async function loadData(){
   STATE.puzzles = puzzles.puzzles;
 }
 
-/* ---------- Page Switch ---------- */
+/* ======================= Page switching ========================= */
 function go(screenId){
   $$('.screen').forEach(s=>s.classList.remove('active'));
   $('#screen-'+screenId).classList.add('active');
 }
 
-/* ---------- Cover ---------- */
+/* ============================ Cover ============================= */
 function initCover(){
   $('#btnStart').addEventListener('click', ()=>{
     const name = $('#playerName').value.trim();
     if(!name){ alert('請輸入玩家名稱'); return; }
     STATE.player = name;
-    saveProgressToLocal(); // 儲存名稱
+    saveAll();                 // 立刻保存玩家名稱
     renderLevelList();
     go('levels');
   });
 }
 
-/* ---------- Level List ---------- */
+/* ========================= Level List =========================== */
 function countSolvedInRange([a,b]){
   let c=0; for(let i=a;i<=b;i++){ if(STATE.solved.has(i)) c++; } return c;
 }
 function isLevelCleared(lv){ return countSolvedInRange(lv.range)===20; }
 
 function renderLevelList(){
-  const ul = $('#levelList');
-  ul.innerHTML = '';
+  const ul = $('#levelList'); ul.innerHTML = '';
   for(const lv of STATE.levels){
     const li = document.createElement('li');
     li.className = 'level-pill';
+
     const unlocked = isLevelCleared(lv)
       ? `public/badges/${lv.badge}_unlocked.png`
       : `public/badges/${lv.badge}_locked.svg`;
+
     const progress = `${countSolvedInRange(lv.range)} / 20`;
+
     li.innerHTML = `
       <div class="level-left">
         <div class="level-title">${lv.name}</div>
@@ -93,17 +120,19 @@ function renderLevelList(){
         <img src="public/icons/nav/arrow_next.svg" alt="">
       </button>
     `;
+
     li.querySelector('.enter-circle').addEventListener('click', ()=>{
       const [a,b] = lv.range;
       let q = a;
       for(let i=a;i<=b;i++){ if(!STATE.solved.has(i)) { q=i; break; } }
       openPuzzle(q);
     });
+
     ul.appendChild(li);
   }
 }
 
-/* ---------- 形狀工具 ---------- */
+/* ====================== Shapes utilities ======================== */
 const P_TYPES = ['I','O','L','T','S'];
 function rotate90(shape){ return shape.map(([r,c])=>[c,-r]); }
 function flipH(shape){ return shape.map(([r,c])=>[r,-c]); }
@@ -132,11 +161,14 @@ const BASE_SHAPES={
 };
 const VALID_SIGS=Object.fromEntries(P_TYPES.map(t=>[t,new Set(allOrientations(BASE_SHAPES[t]))]));
 
-/* ---------- Puzzle ---------- */
+/* ============================ Puzzle ============================ */
 function openPuzzle(id){
   STATE.currentQ=id;
+  // 先建立空盤與鎖定
   STATE.grid  = Array.from({length:5},()=>Array(8).fill('.'));
   STATE.locked= Array.from({length:5},()=>Array(8).fill(false));
+
+  // 題目 rows 上色 + 鎖定
   const target=STATE.puzzles[id-1];
   if(target && target.rows){
     for(let r=0;r<5;r++){
@@ -150,8 +182,27 @@ function openPuzzle(id){
       }
     }
   }
+
+  // 套用玩家曾經作答
+  const saved = _answersCache[id];
+  if (saved) {
+    const parts = saved.split('\n');
+    for(let r=0;r<5;r++){
+      const line = parts[r] || '';
+      for(let c=0;c<8;c++){
+        const ch = line[c] || '.';
+        if(!STATE.locked[r][c] && 'IOLTS'.includes(ch)) {
+          STATE.grid[r][c] = ch;
+        }
+      }
+    }
+  }
+
+  // 顯示
   $('#qNumber').textContent=id;
-  $('#statusImg').src='public/icons/status/btn_unsolved.svg';
+  $('#statusImg').src = STATE.solved.has(id)
+    ? 'public/icons/status/btn_solved.svg'
+    : 'public/icons/status/btn_unsolved.svg';
   updateLevelProgressForCurrentQ();
   drawBoard();
   go('puzzle');
@@ -163,7 +214,7 @@ function updateLevelProgressForCurrentQ(){
   $('#levelProgress').textContent=val;
 }
 
-/* ---------- 畫棋盤 ---------- */
+/* ========================= Draw board ========================== */
 function drawBoard(){
   const cvs=$('#board'),ctx=cvs.getContext('2d');
   const w=cvs.width,h=cvs.height,H=5,W=8;
@@ -195,7 +246,7 @@ function drawBoard(){
   cvs.dataset.cell=JSON.stringify({ox,oy,cell});
 }
 
-/* ---------- 工具列與互動 ---------- */
+/* ====================== Toolbar & actions ====================== */
 function bindToolbar(){
   $$('#paintToolbar .tool').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -207,6 +258,7 @@ function bindToolbar(){
   const first=$('#paintToolbar .tool[data-piece="I"]');
   if(first) first.classList.add('active');
 
+  // 點棋盤上色（自動保存＋驗證）
   $('#board').addEventListener('click',e=>{
     const rect=e.target.getBoundingClientRect();
     const x=e.clientX-rect.left, y=e.clientY-rect.top;
@@ -218,28 +270,30 @@ function bindToolbar(){
     if(STATE.locked[r][c]) return;
     const t=STATE.selectedPiece;
     STATE.grid[r][c] = (t === '.') ? '.' : t;
-    drawBoard(); checkSolved();
+    drawBoard();
+    _collectAnswers(); // 更新該題作答快取
+    saveAll();         // 立即保存
+    checkSolved();
   });
 
+  // 上/下一題
   $('#prevQ').addEventListener('click', ()=> navigateQ(-1));
   $('#nextQ').addEventListener('click', ()=> navigateQ(+1));
-
-  const lbBtn = $('#btnToLeaderboard');
-  if (lbBtn) lbBtn.addEventListener('click', ()=> go('leaderboard'));
 }
 
 function navigateQ(delta){
   let q=STATE.currentQ+delta;
-  if(q<1) q=1;
-  if(q>STATE.puzzles.length) q=STATE.puzzles.length;
+  q = Math.max(1, Math.min(q, STATE.puzzles.length));
   openPuzzle(q);
 }
 
-/* ---------- 驗證 / 通關 ---------- */
+/* ======================= Validation (10塊) ====================== */
 function checkSolved(){
   const H=5, W=8;
   const target = STATE.puzzles[STATE.currentQ-1];
   const tgtRows = target ? target.rows : null;
+
+  // A) 全滿 + 題目格不被改色
   for(let r=0;r<H;r++){
     for(let c=0;c<W;c++){
       const ch = STATE.grid[r][c];
@@ -251,18 +305,18 @@ function checkSolved(){
     }
   }
 
-  // 精確鋪滿驗證
-  const rot = shape => shape.map(([r,c])=>[c,-r]);
-  const flip = shape => shape.map(([r,c])=>[r,-c]);
-  const normalize = shape => {
-    const minR=Math.min(...shape.map(p=>p[0]));
-    const minC=Math.min(...shape.map(p=>p[1]));
-    return shape.map(([r,c])=>[r-minR,c-minC]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  // B) 產生所有合法塊候選
+  const rot = s=>s.map(([r,c])=>[c,-r]);
+  const flip= s=>s.map(([r,c])=>[r,-c]);
+  const norm= s=>{
+    const minR=Math.min(...s.map(p=>p[0]));
+    const minC=Math.min(...s.map(p=>p[1]));
+    return s.map(([r,c])=>[r-minR,c-minC]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
   };
   const uniqShapes = base=>{
-    let s=base, out=[], seen=new Set();
+    let s=base,out=[],seen=new Set();
     for(let i=0;i<4;i++){
-      const a=normalize(s), b=normalize(flip(s));
+      const a=norm(s), b=norm(flip(s));
       const ka=JSON.stringify(a), kb=JSON.stringify(b);
       if(!seen.has(ka)){ seen.add(ka); out.push(a); }
       if(!seen.has(kb)){ seen.add(kb); out.push(b); }
@@ -279,96 +333,74 @@ function checkSolved(){
   };
   const ORIENTS = Object.fromEntries(['I','O','L','T','S'].map(t=>[t, uniqShapes(BASE[t])]));
 
-  const idx = (r,c)=> r*W + c;
-  const CAND = [];
-  for (const t of ['I','O','L','T','S']){
-    for (const shape of ORIENTS[t]){
-      for(let r0=0;r0<H;r0++){
-        for(let c0=0;c0<W;c0++){
-          let ok=true, cells=[];
-          for(const [dr,dc] of shape){
-            const r=r0+dr, c=c0+dc;
-            if(r<0||r>=H||c<0||c>=W){ ok=false; break; }
-            if(STATE.grid[r][c]!==t){ ok=false; break; }
-            cells.push(idx(r,c));
-          }
-          if(ok){
-            cells.sort((a,b)=>a-b);
-            const key = t + ':' + cells.join(',');
-            if(!CAND._seen){ CAND._seen=new Set(); }
-            if(!CAND._seen.has(key)){
-              CAND._seen.add(key);
-              CAND.push({type:t, cells});
-            }
-          }
+  const idx=(r,c)=>r*W+c;
+  const CAND=[];
+  for(const t of ['I','O','L','T','S']){
+    for(const sh of ORIENTS[t]){
+      for(let r0=0;r0<H;r0++) for(let c0=0;c0<W;c0++){
+        let ok=true, cells=[];
+        for(const [dr,dc] of sh){
+          const r=r0+dr,c=c0+dc;
+          if(r<0||r>=H||c<0||c>=W){ ok=false; break; }
+          if(STATE.grid[r][c]!==t){ ok=false; break; }
+          cells.push(idx(r,c));
+        }
+        if(ok){
+          cells.sort((a,b)=>a-b);
+          const key=t+':'+cells.join(',');
+          if(!CAND._seen) CAND._seen=new Set();
+          if(!CAND._seen.has(key)){ CAND._seen.add(key); CAND.push({type:t,cells}); }
         }
       }
     }
   }
-  if (CAND.length === 0) return;
+  if(!CAND.length) return;
 
-  const cellToCand = Array.from({length:H*W}, ()=>[]);
-  CAND.forEach((cand, i)=> cand.cells.forEach(ci=> cellToCand[ci].push(i)));
+  const cellToCand=Array.from({length:H*W},()=>[]);
+  CAND.forEach((cand,i)=>cand.cells.forEach(ci=>cellToCand[ci].push(i)));
 
-  const usedCell = Array(H*W).fill(false);
-  const usedCand = Array(CAND.length).fill(false);
-  const countByType = {I:0,O:0,L:0,T:0,S:0};
-  let picked = 0;
+  const usedCell=Array(H*W).fill(false), usedCand=Array(CAND.length).fill(false);
+  const cnt={I:0,O:0,L:0,T:0,S:0}; let picked=0;
 
   function nextCell(){
-    let best=-1, list=null;
+    let best=-1, ret=null;
     for(let i=0;i<H*W;i++){
       if(usedCell[i]) continue;
-      const arr = cellToCand[i].filter(ci=>{
+      const opts=cellToCand[i].filter(ci=>{
         if(usedCand[ci]) return false;
         for(const cc of CAND[ci].cells) if(usedCell[cc]) return false;
-        if(countByType[CAND[ci].type] >= 2) return false;
+        if(cnt[CAND[ci].type]>=2) return false;
         return true;
       });
-      if(arr.length===0) return {i, options:[]};
-      if(best===-1 || arr.length < best){
-        best = arr.length;
-        list = {i, options:arr};
-        if(best===1) break;
-      }
+      if(opts.length===0) return {i,options:[]};
+      if(best===-1 || opts.length<best){ best=opts.length; ret={i,options:opts}; if(best===1) break; }
     }
-    return list;
+    return ret;
   }
-
   function dfs(){
-    if (picked === 10){
+    if(picked===10){
       for(let i=0;i<H*W;i++) if(!usedCell[i]) return false;
-      return ['I','O','L','T','S'].every(t=>countByType[t]===2);
+      return ['I','O','L','T','S'].every(t=>cnt[t]===2);
     }
-    const choice = nextCell();
-    if(!choice) return false;
-    const {options} = choice;
-    if(options.length===0) return false;
-
+    const choice=nextCell(); if(!choice) return false;
+    const {options}=choice; if(options.length===0) return false;
     for(const ci of options){
-      const cand = CAND[ci];
+      const cand=CAND[ci];
       let clash=false; for(const cc of cand.cells){ if(usedCell[cc]){ clash=true; break; } }
       if(clash) continue;
-
-      usedCand[ci]=true; picked++; countByType[cand.type]++;
-      cand.cells.forEach(cc=> usedCell[cc]=true);
-      if (countByType[cand.type] <= 2 && dfs()) return true;
-      cand.cells.forEach(cc=> usedCell[cc]=false);
-      countByType[cand.type]--;
-      picked--; usedCand[ci]=false;
+      usedCand[ci]=true; picked++; cnt[cand.type]++; cand.cells.forEach(cc=>usedCell[cc]=true);
+      if(cnt[cand.type]<=2 && dfs()) return true;
+      cand.cells.forEach(cc=>usedCell[cc]=false); cnt[cand.type]--; picked--; usedCand[ci]=false;
     }
     return false;
   }
-
-  const ok = dfs();
-  if(!ok) return;
+  if(!dfs()) return;
 
   // ✅ 通關
   STATE.solved.add(STATE.currentQ);
   $('#statusImg').src='public/icons/status/btn_solved.svg';
   updateLevelProgressForCurrentQ();
-  saveProgressToLocal(); // ← 儲存通關進度
-
+  saveAll(); // 保存通關與作答
   const lv=STATE.levels.find(l=>STATE.currentQ>=l.range[0]&&STATE.currentQ<=l.range[1]);
   if(lv && isLevelCleared(lv)){
     $('#badgeBig').src=`public/badges_big/${lv.badge}_big.png`;
@@ -376,32 +408,77 @@ function checkSolved(){
   }
 }
 
-/* ---------- Leaderboard (暫保留) ---------- */
+/* ========================== Leaderboard =========================
+   這裡先做「不阻塞」版本：即使後端掛了也能返回 */
 async function loadLeaderboard(){
   const list = $('#leaderboardList');
   if(!list) return;
-  list.textContent = '排行榜暫不提供或伺服器離線';
+  const url = STATE.config && STATE.config.leaderboardUrl;
+  if(!url){ list.textContent='排行榜暫不提供或伺服器離線'; return; }
+
+  list.textContent = '讀取中…';
+  let timer;
+  try{
+    const ctrl = new AbortController();
+    timer = setTimeout(()=>ctrl.abort(), 6000); // 6 秒逾時
+    const res = await fetch(url + (url.includes('?')?'&':'?') + 'top=50', {
+      method:'GET', mode:'cors', headers:{accept:'application/json'}, signal: ctrl.signal
+    });
+    clearTimeout(timer);
+    let data=null; try{ data=await res.json(); }catch{}
+    if(!res.ok || !data || data.ok===false || !Array.isArray(data.players)){
+      list.textContent='讀取失敗';
+      return;
+    }
+    list.innerHTML='';
+    data.players.forEach(p=>{
+      const row=document.createElement('div');
+      row.className='lb-row';
+      row.innerHTML=`<div class="lb-name">${p.rank}. ${p.name}</div><div>${p.total_cleared}</div>`;
+      list.appendChild(row);
+    });
+  }catch(e){
+    clearTimeout(timer);
+    list.textContent='讀取失敗';
+  }
 }
 
-/* ---------- Nav ---------- */
+/* ============================== Nav ============================ */
+// 用事件委派，確保任何 data-go 的按鈕都能返回
 function initNav(){
-  $$('#screen-levels .topbar .nav-btn').forEach(btn => btn.addEventListener('click', () => go('cover')));
-  $$('#screen-puzzle .topbar .nav-btn[data-go="levels"]').forEach(btn => btn.addEventListener('click', () => go('levels')));
-  $$('#screen-badge .topbar .nav-btn').forEach(btn => btn.addEventListener('click', () => go('levels')));
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.nav-btn[data-go]');
+    if(btn){
+      const to = btn.getAttribute('data-go');
+      if(to) go(to);
+    }
+  });
+
+  // 右上🏆：先切頁再載排行榜，不會卡住返回
+  const lbBtn = $('#btnToLeaderboard');
+  if (lbBtn) lbBtn.addEventListener('click', ()=>{
+    go('leaderboard');
+    loadLeaderboard();
+  });
+
   const btnBadgeNext = $('#btnBadgeNext');
-  if (btnBadgeNext) btnBadgeNext.addEventListener('click', () => go('levels'));
-  const lbBack = document.querySelector('#screen-leaderboard .topbar .nav-btn');
-  if (lbBack) lbBack.addEventListener('click', () => go('levels'));
+  if (btnBadgeNext) btnBadgeNext.addEventListener('click', ()=> go('levels'));
 }
 
-/* ---------- Boot ---------- */
+/* ============================= Boot ============================ */
 (async function(){
   await loadData();
-  loadProgressFromLocal(); // ← 載入舊紀錄
-  const nameInput = $('#playerName');
-  if (nameInput && STATE.player) nameInput.value = STATE.player; // 顯示舊名字
+  // 讀取本地存檔
+  const saved = loadAll();
+  STATE.player = saved.player || '';
+  STATE.solved = new Set(saved.solved || []);
+  _answersCache = saved.answers || {};
+
+  // 將名字帶回封面輸入框
+  const nameInput = $('#playerName'); if(nameInput && STATE.player) nameInput.value = STATE.player;
+
   initCover();
   bindToolbar();
   initNav();
-  await loadLeaderboard();
+  renderLevelList();          // 讓關卡進度顯示已解數量
 })();
