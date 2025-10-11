@@ -462,13 +462,30 @@ async function loadLeaderboard(){
 
 /* ---------- Nav ---------- */
 function initNav(){
-  $$('#screen-levels .topbar .nav-btn').forEach(btn=>btn.addEventListener('click',()=>go('cover')));
-  $$('#screen-puzzle .topbar .nav-btn[data-go="levels"]').forEach(btn=>btn.addEventListener('click',()=>go('levels')));
-  $$('#screen-badge .topbar .nav-btn').forEach(btn=>btn.addEventListener('click',()=>go('levels')));
-  const btnBadgeNext=$('#btnBadgeNext');
-  if(btnBadgeNext) btnBadgeNext.addEventListener('click',()=>go('levels'));
+  // 固定返回
+  $$('#screen-levels .topbar .nav-btn').forEach(btn =>
+    btn.addEventListener('click', () => go('cover'))
+  );
+  $$('#screen-puzzle .topbar .nav-btn[data-go="levels"]').forEach(btn =>
+    btn.addEventListener('click', () => go('levels'))
+  );
+  $$('#screen-badge .topbar .nav-btn').forEach(btn =>
+    btn.addEventListener('click', () => go('levels'))
+  );
+
+  const btnBadgeNext = $('#btnBadgeNext');
+  if (btnBadgeNext) btnBadgeNext.addEventListener('click', () => go('levels'));
+
+  // 右上角🏆：先切頁再載資料，避免讀取失敗卡住
+  const lbBtn = $('#btnToLeaderboard');
+  if (lbBtn) lbBtn.addEventListener('click', () => {
+    go('leaderboard');
     loadLeaderboard();
   });
+
+  // 排行榜頁左上返回
+  const lbBack = document.querySelector('#screen-leaderboard .topbar .nav-btn');
+  if (lbBack) lbBack.addEventListener('click', () => go('levels'));
 }
 
 /* ---------- Boot ---------- */
