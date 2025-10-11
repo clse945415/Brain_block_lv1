@@ -423,6 +423,7 @@ async function pushProgress(){
     const url = STATE.config && STATE.config.leaderboardUrl;
     if(!url || !STATE.player) return;
 
+    // 各關 0–20
     const prog = {};
     for (const lv of STATE.levels){
       prog['L'+lv.level] = countSolvedInRange(lv.range);
@@ -440,13 +441,14 @@ async function pushProgress(){
       progress: prog
     };
 
+    // 關鍵：不要設定 content-type / mode，避免 CORS 預檢
     await fetch(url, {
       method:'POST',
-      mode:'cors',
-      headers:{'content-type':'application/json'},
       body: JSON.stringify(payload)
     });
-  }catch(e){ console.warn('pushProgress exception', e); }
+  }catch(e){
+    console.warn('pushProgress exception', e);
+  }
 }
 
 async function loadLeaderboard(){
