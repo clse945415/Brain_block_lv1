@@ -376,6 +376,9 @@ function checkSolved(){
   $('#statusImg').src='public/icons/status/btn_solved.svg';
   updateLevelProgressForCurrentQ();
 
+  // 先本地存檔（避免網路失敗）
+  if (typeof saveProgressToLocal === 'function') saveProgressToLocal();
+
   const lv=STATE.levels.find(l=>STATE.currentQ>=l.range[0]&&STATE.currentQ<=l.range[1]);
   if(lv && isLevelCleared(lv)){
     $('#badgeBig').src=`public/badges_big/${lv.badge}_big.png`;
@@ -386,29 +389,75 @@ function checkSolved(){
 /* ---------- Leaderboard ---------- */
 async function pushProgress(){
   try{
-    const url=STATE.config.leaderboardUrl;
-    if(!url || !STATE.player) return;
-    const per={};
-    for(const lv of STATE.levels) per[`L${lv.level}`]=countSolvedInRange(lv.range);
-    await fetch(url,{
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify({secret:STATE.config.sharedSecret,name:STATE.player,progress:per})
-    });
-  }catch(e){ console.warn('pushProgress failed', e); }
+    const url = STATE.config && STATE.config.leaderboardUrl;
+    if(!url || !STATE.player){ console.warn('leaderboard disabled'); return; }
+
+    // 逐關進度（L1~L5 各 0-20）
+    const per = {};
+    for(const lv of STATE.levels){
+      per[`L${lv.level}`] = countSolvedInRange(lv.range);
+    }
+
+    const payload = {
+      secret: STATE.config.sharedSecret || '',
+      name: STATE.player,
+      progress: per
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      mode: 'cors',        // 伺服器需回 Access-Control-Allow-Origin
+      keepalive: true,     // 避免頁面切換中斷
+      headers: { 'content-type':'application/json', 'accept':'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(err => ({_err:err}));
+
+    if(res && res.ok){
+      // 可選：成功後再刷新一次排行榜（若此時在排行榜頁）
+      if(document.querySelector('#screen-leaderboard').classList.contains('active')){
+        loadLeaderboard();
+      }
+    }else{
+      console.warn('pushProgress failed', res && (res.status || res._err));
+    }
+  }catch(e){
+    console.warn('pushProgress exception', e);
+  }
 }
 
 async function loadLeaderboard(){
-  const url=STATE.config.leaderboardUrl+'?top=50';
-  const res=await fetch(url).then(r=>r.json()).catch(()=>({ok:false}));
-  const list=$('#leaderboardList'); list.innerHTML='';
-  if(!res.ok){ list.textContent='讀取失敗'; return; }
-  res.players.forEach(p=>{
-    const row=document.createElement('div');
-    row.className='lb-row';
-    row.innerHTML=`<div class="lb-name">${p.rank}. ${p.name}</div><div>${p.total_cleared}</div>`;
-    list.appendChild(row);
-  });
+  const list = $('#leaderboardList');
+  list.innerHTML = '讀取中…';
+
+  const url = STATE.config && STATE.config.leaderboardUrl;
+  if(!url){ list.textContent = '排行榜未啟用'; return; }
+
+  try{
+    const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'top=50', {
+      method: 'GET',
+      mode: 'cors',
+      headers: { 'accept':'application/json' }
+    });
+
+    let data = null;
+    try { data = await res.json(); } catch { /* 不是 JSON */ }
+
+    if(!res.ok || !data || data.ok === false || !Array.isArray(data.players)){
+      list.textContent = '讀取失敗';
+      return;
+    }
+
+    list.innerHTML = '';
+    data.players.forEach(p=>{
+      const row = document.createElement('div');
+      row.className = 'lb-row';
+      row.innerHTML = `<div class="lb-name">${p.rank}. ${p.name}</div><div>${p.total_cleared}</div>`;
+      list.appendChild(row);
+    });
+  }catch(e){
+    console.warn('loadLeaderboard failed', e);
+    list.textContent = '讀取失敗';
+  }
 }
 
 /* ---------- Nav ---------- */
