@@ -173,13 +173,16 @@ body{
 
 /* === 徽章頁 === */
 #screen-badge{
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-  align-items:center;
-  min-height:100vh;
-  padding:12px 0 28px;
-  text-align:center;
+  /* 不設定 display，讓 .screen 的 display:none 生效 */
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 100vh;
+  padding: 12px 0 28px;
+  text-align: center;
+}
+#screen-badge.active{
+  display: flex;             /* 只有啟用時才顯示 */
 }
 
 .badge-topbar{
@@ -191,7 +194,6 @@ body{
   position:relative;
   z-index:2;
 }
-
 .badge-topbar h1{
   flex:1;
   text-align:center;
@@ -199,13 +201,11 @@ body{
   font-weight:800;
   margin:0;
 }
-
 .badge-topbar .nav-btn img{
-  width:28px;
-  height:28px;
-  display:block;
+  width:28px; height:28px; display:block;
 }
 
+/* 合併後的徽章容器（刪掉上方舊的 .badge-wrap 定義以免重複） */
 .badge-wrap{
   flex:1;
   display:flex;
@@ -213,10 +213,9 @@ body{
   align-items:center;
   margin:16px 0;
 }
-
 .badge-wrap img{
   max-width:80vw;
-  max-height:60vh;
+  max-height:70vh;           /* 給比較寬鬆的高度避免小螢幕溢出 */
   border-radius:12px;
   background:#fff;
   object-fit:contain;
@@ -227,7 +226,6 @@ body{
   justify-content:center;
   align-items:center;
 }
-
 #btnBadgeNext.pill{
   background:#eae6da;
   color:#114a4d;
@@ -238,3 +236,4 @@ body{
   font-weight:800;
   -webkit-tap-highlight-color:transparent;
 }
+
