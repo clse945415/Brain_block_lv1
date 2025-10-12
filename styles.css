@@ -1,5 +1,6 @@
-*{box-sizing:border-box}
-html, body { overflow-x: hidden; height:100%; }
+/* ============ Base ============ */
+* { box-sizing: border-box; }
+html, body { overflow-x: hidden; height: 100%; }
 body{
   margin:0;
   font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans TC',sans-serif;
@@ -8,399 +9,164 @@ body{
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-.screen{display:none;min-height:100vh;padding:12px}
-.screen.active{display:block}
+.screen{ display:none; min-height:100vh; padding:12px; }
+.screen.active{ display:block; }
 
-/* ---------- Topbar ---------- */
+/* ============ Topbar ============ */
 .topbar{
-  display:flex;
-  align-items:center;
-  gap:8px;
+  display:flex; align-items:center; gap:8px;
 }
 .topbar h1{
-  flex:1;
-  text-align:center;       /* 置中 */
-  font-size:28px;          /* 大字 */
-  font-weight:800;
-  margin:12px 0;
-  letter-spacing:1px;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  flex:1; text-align:center; font-size:28px; font-weight:800;
+  margin:12px 0; letter-spacing:1px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
-.nav-btn{
-  background:transparent;border:none;padding:6px;border-radius:10px;
-  -webkit-tap-highlight-color: transparent;
-}
+.nav-btn{ background:transparent; border:none; padding:6px; border-radius:10px; -webkit-tap-highlight-color:transparent; }
 
 /* Puzzle header（左返回｜中進度｜右排行榜） */
 .puzzle-topbar{
-  position: relative;
-  display: grid;
-  grid-template-columns: 48px 1fr 48px;
-  align-items: center;
-  padding-top: 8px;
+  position:relative; display:grid; grid-template-columns:48px 1fr 48px;
+  align-items:center; padding-top:8px;
 }
-.topbar-center{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:800;
-  font-size:18px;
-  letter-spacing:.5px;
-}
+.topbar-center{ display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; letter-spacing:.5px; }
 
-/* ---------- Cover ---------- */
-.cover-top img{display:block;max-width:720px;width:100%;margin:0 auto;border-radius:12px}
-.cover-form{display:flex;flex-direction:column;gap:12px;max-width:420px;margin:18px auto 0}
+/* ============ Cover ============ */
+.cover-top img{ display:block; max-width:720px; width:100%; margin:0 auto; border-radius:12px; }
+.cover-form{ display:flex; flex-direction:column; gap:12px; max-width:420px; margin:18px auto 0; }
 .cover-form input{
-  padding:12px 14px;border-radius:10px;border:2px solid #eae6da;font-size:18px;
-  -webkit-tap-highlight-color: transparent;
+  padding:12px 14px; border-radius:10px; border:2px solid #eae6da; font-size:18px; -webkit-tap-highlight-color:transparent;
 }
 .cover-form button{
-  padding:12px;border:none;border-radius:10px;background:#eae6da;color:#114a4d;font-weight:700;font-size:18px;
-  -webkit-tap-highlight-color: transparent;
+  padding:12px; border:none; border-radius:10px; background:#eae6da; color:#114a4d; font-weight:700; font-size:18px; -webkit-tap-highlight-color:transparent;
 }
 
-/* ---------- Level List（名稱靠左大字｜同列右側 0/20｜更右側徽章｜最右箭頭） ---------- */
+/* ============ Level List ============ */
+/* 名稱靠左｜右側依序：徽章圓、箭頭圓；標題單行，進度可縮小 */
 .level-list{
-  list-style:none;
-  padding:0;
-  margin:16px auto 12px;
-  max-width:720px;
-  display:flex;
-  flex-direction:column;
-  gap:16px;
+  list-style:none; padding:0; margin:16px auto 12px; max-width:720px;
+  display:flex; flex-direction:column; gap:16px;
 }
-
-/* 膠囊卡片 */
 .level-pill{
-  display:grid;
-  grid-template-columns: 1fr auto auto; /* 左名稱區 | 問號圓 | 箭頭圓 */
-  align-items:center;
-  gap:14px;
-  background:#e7ecdf;
-  color:#114a4d;
-  border-radius:24px;
-  padding:18px 18px 18px 24px;
+  display:grid; grid-template-columns:1fr 56px 56px; /* 左(名稱+進度) | 徽章 | 箭頭 */
+  align-items:center; gap:14px;
+  background:#e7ecdf; color:#114a4d;
+  border-radius:24px; padding:18px 18px 18px 24px;
   border:2px solid rgba(234,230,218,.9);
-  box-shadow: 0 1px 0 rgba(0,0,0,.03) inset;
+  box-shadow:0 1px 0 rgba(0,0,0,.03) inset;
 }
-
-/* 左邊名稱+進度 */
 .level-left{
-  display:flex;
-  align-items:center;
-  gap:12px;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; min-width:0; flex-wrap:nowrap;
 }
+/* 標題：永遠單行、不縮、不省略（桌機28px；手機24px） */
 .level-title{
-  font-size:28px;
-  font-weight:900;
-  letter-spacing:1px;
+  flex:1 1 auto; min-width:0;
+  white-space:nowrap; overflow:visible; text-overflow:clip;
+  font-size:28px; font-weight:900; letter-spacing:1px;
 }
+/* 進度：只在窄螢幕縮小／變窄，不擠到徽章 */
 .level-progress{
-  font-size:18px;
-  font-weight:700;
-  opacity:0.85;
+  flex:0 0 auto; text-align:right; white-space:nowrap;
+  font-size:18px; font-weight:700; opacity:.85;
+  font-variant-numeric: tabular-nums; font-feature-settings:"tnum";
+  min-width:60px; max-width:clamp(72px, 22vw, 110px);
+  transform-origin:right center; transition:transform .2s ease;
 }
-
-/* 問號徽章 */
-.badge-circle{
-  width:56px; height:56px;
-  border-radius:50%;
-  background:rgba(17,74,77,.08);
+/* 徽章＆箭頭固定尺寸，避免被擠 */
+.badge-circle, .enter-circle{
+  width:56px; height:56px; flex:0 0 56px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
 }
-.badge-circle img{
-  width:36px; height:36px; object-fit:contain; opacity:.9;
-  pointer-events:none;
-}
-
-/* 箭頭按鈕 */
-.enter-circle{
-  width:56px; height:56px;
-  border-radius:50%;
-  border:none;
-  background:rgba(17,74,77,.15);
-  display:flex; align-items:center; justify-content:center;
-  cursor:pointer;
-  -webkit-tap-highlight-color: transparent;
-}
+.badge-circle{ background:rgba(17,74,77,.08); }
+.badge-circle img{ width:36px; height:36px; object-fit:contain; opacity:.9; pointer-events:none; }
+.enter-circle{ border:none; background:rgba(17,74,77,.15); cursor:pointer; -webkit-tap-highlight-color:transparent; }
 .enter-circle img{ width:26px; height:26px; pointer-events:none; }
 
-/* 小螢幕微調 */
+/* Level List - 小螢幕微調 */
+@media (max-width: 480px){
+  .level-left{ gap:8px; }
+  .level-progress{ font-size:clamp(12px, 3.8vw, 18px); transform:scaleX(.9); }
+}
 @media (max-width: 420px){
   .level-title{ font-size:24px; }
   .level-progress{ font-size:16px; }
-  .badge-circle, .enter-circle{ width:52px; height:52px; }
+  .badge-circle, .enter-circle{ width:52px; height:52px; flex-basis:52px; }
   .badge-circle img{ width:32px; height:32px; }
   .enter-circle img{ width:24px; height:24px; }
 }
 
-/* ---------- Puzzle ---------- */
-.puzzle-title{
-  text-align:center;
-  font-size:32px;     /* Q# 大字置中 */
-  font-weight:900;
-  margin:8px 0 6px;
-}
+/* ============ Puzzle ============ */
+.puzzle-title{ text-align:center; font-size:32px; font-weight:900; margin:8px 0 6px; }
 
-/* 只縮放棋盤，不影響畫布內像素 */
 .board-wrap{
-  display:flex;
-  justify-content:center;
-  margin:8px 0 10px;
-  overflow: visible;           /* 不裁切陰影 */
-  padding-inline: 8px;         /* 輕微留白，不影響 JS 計算 */
-  max-width: 100dvw;
-  touch-action: none;
+  display:flex; justify-content:center; margin:8px 0 10px;
+  overflow:visible; padding-inline:8px; max-width:100dvw; touch-action:none;
 }
 #board{
-  display:block;               /* 避免 inline-canvas 造成對齊縫隙 */
-  max-width:100%;
-  background:#F7F7F7;
-  border-radius:12px;
-  box-shadow:0 0 0 10px #eae6da inset; /* 米白外框 */
-  touch-action:none;           /* ✅ 關鍵：不要把觸控當捲動/縮放 */
-  -webkit-tap-highlight-color: transparent;
-  user-select:none;
-  cursor: pointer;
+  display:block; max-width:100%; background:#F7F7F7; border-radius:12px;
+  box-shadow:0 0 0 10px #eae6da inset;
+  touch-action:none; -webkit-tap-highlight-color:transparent;
+  user-select:none; cursor:pointer;
 }
-
-/* 上色工具列 */
 .toolbar{
-  display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin:6px 0 10px;
-  user-select:none;
+  display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin:6px 0 10px; user-select:none;
 }
 .toolbar .tool{
-  background:#fff; border:2px solid #eae6da; border-radius:10px; padding:6px; outline:none;
-  -webkit-tap-highlight-color: transparent;
+  background:#fff; border:2px solid #eae6da; border-radius:10px; padding:6px; outline:none; -webkit-tap-highlight-color:transparent;
 }
 .toolbar img{ height:40px; pointer-events:none; }
 .tool.active{
   border-color:#114a4d;
-  box-shadow:
-    0 0 0 4px rgba(255,255,255,.95) inset, /* 內白暈更厚 */
-    0 0 0 3px #114a4d;                     /* 外黑框更粗 */
-  transform: translateY(-1px);
+  box-shadow:0 0 0 4px rgba(255,255,255,.95) inset, 0 0 0 3px #114a4d;
+  transform:translateY(-1px);
 }
-/* 若你確定要厚邊框外觀，保留；不需要的話可以移除這行 */
-.toolbar .tool{ border:10px solid #eae6da; } /* 未選狀態維持原樣 */
+/* 可選：若不需要厚邊框就刪掉下一行 */
+.toolbar .tool{ border:10px solid #eae6da; }
 
-/* 底部：上一題｜小小未答｜下一題 */
 .puzzle-footer{
-  display:flex; align-items:center; justify-content:center; gap:18px; margin:12px 0 24px;
-  -webkit-tap-highlight-color: transparent;
+  display:flex; align-items:center; justify-content:center; gap:18px; margin:12px 0 24px; -webkit-tap-highlight-color:transparent;
 }
 .pill{
-  background:#fff; color:#114a4d; border:2px solid #eae6da; border-radius:999px; padding:8px 14px; font-weight:800;
-  user-select:none;
+  background:#fff; color:#114a4d; border:2px solid #eae6da; border-radius:999px; padding:8px 14px; font-weight:800; user-select:none;
 }
 .status-small{ width:42px; height:42px; display:block; pointer-events:none; }
 
-/* ---------- Badges & Leaderboard ---------- */
-.badge-wrap{display:flex;justify-content:center;margin:20px 0}
-.badge-wrap img{max-width:60vw;height:auto}
-.badge-actions{display:flex;justify-content:center}
-.leaderboard{max-width:640px;margin:0 auto;background:#155f63;border:2px solid #eae6da;border-radius:16px;padding:10px}
-.lb-row{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #eae6da}
-.lb-row:last-child{border-bottom:none}
-.lb-name{font-weight:700}
-
-/* 讓排行榜頁的 topbar 左鍵＋中標題＋右側留白排好 */
-#screen-leaderboard .topbar{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;   /* 關鍵：不讓 <h1> 把按鈕擠掉 */
-  padding: 8px 10px;
+/* ============ Badges ============ */
+.badge-wrap{ display:flex; justify-content:center; margin:20px 0; }
+.badge-wrap img{
+  max-width:80vw; max-height:70vh; height:auto; object-fit:contain;
 }
 
-/* 給返回圖示明確尺寸，沒載到圖也仍然有可點擊面積 */
-#screen-leaderboard .topbar .nav-btn img{
-  width:28px;
-  height:28px;
-  display:block;
-  pointer-events:none;
-}
-
-/* Leaderboard 進度條 (5 關) */
-.lb-row-bars{ align-items: center; gap:12px; }
-.lb-bars{
-  display:grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap:8px; width: 60%;
-}
-.lb-bars .bar{
-  position:relative; height:16px; border:1px solid #eae6da; border-radius:8px; background:rgba(255,255,255,.15); overflow:hidden;
-}
-.lb-bars .bar .fill{ height:100%; background:#eae6da; }
-.lb-bars .bar span{
-  position:absolute; inset:0; font-size:10px; line-height:16px; text-align:center; color:#114a4d; font-weight:800;
-}
-@media (max-width:560px){
-  .lb-bars{ width:100%; }
-  .lb-bars .bar span{ font-size:9px; }
-}
-
-/* --- Leaderboard: total 與進度條 --- */
-.lb-row{
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-
-.lb-total{
-  background:#fff;
-  color:#114a4d;
-  font-weight:800;
-  border:2px solid #eae6da;
-  border-radius:999px;
-  padding:4px 10px;
-  min-width:92px;            /* 例如 25 / 100 */
-  text-align:center;
-}
-
-.lb-bars{
-  display:flex;
-  gap:8px;
-  flex:1;
-  justify-content:flex-end;
-}
-
-.lb-bar{
-  width:84px;                /* 每關一條 */
-  height:12px;
-  border-radius:999px;
-  background:rgba(255,255,255,.14);
-  overflow:hidden;
-  box-shadow: inset 0 0 0 1px rgba(234,230,218,.6);
-}
-.lb-bar > i{
-  display:block;
-  height:100%;
-  width:0%;
-  background:#eae6da;        /* 會用 JS 覆蓋顏色與寬度 */
-}
-
-/* === Leaderboard：簡潔版（只顯示名稱 + 總完成） === */
-
-/* 1) 隱藏 5 關進度條（保險起見加上作用域） */
-#screen-leaderboard .lb-bars { display: none !important; }
-
-/* 2) 外框縮減一點 padding，保持居中 */
+/* ============ Leaderboard（簡潔版：名稱 + 總完成） ============ */
 .leaderboard{
-  max-width: 640px;
-  margin: 0 auto;
-  background: #155f63;
-  border: 2px solid #eae6da;
-  border-radius: 16px;
-  padding: 8px 10px; /* 比原本再緊一點，手機不會擠出畫面 */
+  max-width:640px; margin:0 auto; background:#155f63;
+  border:2px solid #eae6da; border-radius:16px; padding:8px 10px;
 }
-
-/* 3) 單列樣式：只排名次、名稱、總進度 */
+#leaderboardList{ display:flex; flex-direction:column; gap:10px; padding:0 2px; }
 .lb-row{
-  display: grid;
-  grid-template-columns: 32px 1fr auto; /* 排名 | 名稱 | x/100 */
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(234,230,218,.6);
+  display:grid; grid-template-columns:32px 1fr auto; /* 排名 | 名稱 | x/100 */
+  align-items:center; gap:10px; padding:10px 12px;
+  border-bottom:1px solid rgba(234,230,218,.6);
 }
-.lb-row:last-child{ border-bottom: none; }
-
-.lb-name{
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* x/100 膠囊 */
+.lb-row:last-child{ border-bottom:none; }
+.lb-name{ font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .lb-total{
-  background:#fff;
-  color:#114a4d;
-  font-weight: 800;
-  border: 2px solid #eae6da;
-  border-radius: 999px;
-  padding: 4px 10px;
-  min-width: 90px;       /* 例如 25 / 100 */
-  text-align: center;
+  background:#fff; color:#114a4d; font-weight:800;
+  border:2px solid #eae6da; border-radius:999px;
+  padding:4px 10px; min-width:90px; text-align:center;
 }
+/* 隱藏舊版 5 關進度條區 */
+#screen-leaderboard .lb-bars{ display:none !important; }
 
-/* 4) 小螢幕優化：縮小左右 padding，避免擠壓 */
+/* Leaderboard 頁面的 Topbar 尺寸 */
+#screen-leaderboard .topbar{
+  display:flex; align-items:center; justify-content:space-between; padding:8px 10px;
+}
+#screen-leaderboard .topbar .nav-btn img{ width:28px; height:28px; display:block; pointer-events:none; }
+
+/* Leaderboard - 小螢幕 */
 @media (max-width: 420px){
-  .leaderboard{ padding: 6px 8px; }
-  .lb-row{ gap: 8px; padding: 8px 10px; }
-  .lb-total{ min-width: 80px; padding: 3px 8px; }
+  .leaderboard{ padding:6px 8px; }
+  .lb-row{ gap:8px; padding:8px 10px; }
+  .lb-total{ min-width:80px; padding:3px 8px; }
 }
-
-/* === Level List：標題固定一行、進度自動縮小，不擠徽章 === */
-
-/* 三欄：左(名稱+進度) | 徽章 | 箭頭 */
-.level-pill{
-  display: grid;
-  grid-template-columns: 1fr 56px 56px;
-  align-items: center;
-}
-
-/* 左側名稱 + 進度 */
-.level-left{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-  flex-wrap: nowrap;
-}
-
-/* 標題：永遠單行顯示，不換行、不截斷 */
-.level-title{
-  flex: 1 1 auto;
-  white-space: nowrap;
-  overflow: visible;
-  text-overflow: clip;
-  min-width: 0;
-  font-size: 28px; /* 桌機維持28px */
-  @media (max-width: 420px){
-  .level-title{ font-size:24px; }
-}
-}
-
-/* 通關數字：固定右側、可自動縮放寬度 */
-.level-progress{
-  flex: 0 0 auto;
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
-  min-width: 60px;
-  transition: transform 0.2s ease;
-  transform-origin: right center;
-}
-
-/* 進度在小螢幕時自動微縮（保持整行不撐開） */
-@media (max-width: 480px) {
-  .level-left {
-    gap: 8px;
-  }
-  .level-progress {
-    font-size: clamp(12px, 3.8vw, 18px);  /* 根據螢幕寬縮放字體 */
-    transform: scaleX(0.9);               /* 寬度微壓縮 */
-  }
-}
-
-/* 防止徽章與箭頭被擠掉：強制固定寬度 */
-.badge-circle,
-.enter-circle {
-  flex: 0 0 56px;
-  width: 56px;
-  height: 56px;
-}
-@media (max-width: 420px){
-  .badge-circle, .enter-circle {
-    flex: 0 0 52px;
-    width: 52px;
-    height: 52px;
-  }
-}
-
