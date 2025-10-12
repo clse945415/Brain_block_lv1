@@ -129,20 +129,29 @@ async function loadData(){
 function go(screenId){
   const prevActive = document.querySelector('.screen.active');
 
+  // 1) 任何切頁先把整頁 scroll 歸零（多重 fallback）
+  try {
+    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, left: 0 });
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  } catch(_) {}
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+
+  // 2) 切換 active 畫面
   $$('.screen').forEach(s=>s.classList.remove('active'));
   const scr = $('#screen-'+screenId);
   scr.classList.add('active');
+  scr.scrollTop = 0;
 
-  // 離開題目頁：清掉 canvas 行內尺寸，避免殘留撐高
+  // 3) 離開題目頁：清掉 canvas 行內尺寸，避免殘留撐高
   if (prevActive && prevActive.id === 'screen-puzzle' && screenId !== 'puzzle') {
     const board = document.getElementById('board');
     if (board) { board.style.width = ''; board.style.height = ''; }
   }
 
-  // 進入題目頁：捲回頂端並在下一幀做 fit
+  // 4) 進入題目頁：下一幀再 fit（讓 DOM 高度先定型）
   if (screenId === 'puzzle') {
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    scr.scrollTop = 0;
     requestAnimationFrame(()=>{
       if (typeof window.__fitBoardMobile === 'function') {
         window.__fitBoardMobile();
@@ -150,7 +159,6 @@ function go(screenId){
     });
   }
 }
-
 
 /* ---------- Cover ---------- */
 function initCover(){
@@ -291,15 +299,21 @@ function openPuzzle(id){
   drawBoard();
   go('puzzle');
 
-// 回到頁面頂端，避免沿用上一頁的捲動位置
-window.scrollTo({ top: 0, behavior: 'instant' });
+  // 回到頁面頂端（多重 fallback，跨瀏覽器保險）
+  try {
+    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, left: 0 });
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  } catch(_) {}
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
 
-// 下一幀再 fit，確保 DOM 尺寸量到正確
-requestAnimationFrame(()=>{
-  if (typeof window.__fitBoardMobile === 'function') {
-    window.__fitBoardMobile();
-  }
-});
+  // 下一幀再 fit，確保 DOM 尺寸量到正確
+  requestAnimationFrame(()=>{
+    if (typeof window.__fitBoardMobile === 'function') {
+      window.__fitBoardMobile();
+    }
+  });
 }
 
 function updateLevelProgressForCurrentQ(){
@@ -918,8 +932,6 @@ function injectPWAStyles(){
   }
   window.__fitBoardMobile = fitBoardMobile;
 })();
-
-
 
 /* ---------- Badge Page helpers ---------- */
 // 顯示大徽章頁（由選關小徽章點擊，或通關後呼叫）
