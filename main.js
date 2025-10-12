@@ -300,7 +300,7 @@ requestAnimationFrame(()=>{
     window.__fitBoardMobile();
   }
 });
-
+}
 
 function updateLevelProgressForCurrentQ(){
   const lv=STATE.levels.find(l=>STATE.currentQ>=l.range[0]&&STATE.currentQ<=l.range[1]);
@@ -849,44 +849,38 @@ function injectPWAStyles(){
   const RATIO_W = 8, RATIO_H = 5;
   const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
 
- function fitBoardMobile() {
-  const board = document.getElementById('board');
-  const wrap  = board?.closest('.board-wrap');
-  const screenPuzzle = document.getElementById('screen-puzzle');
+  function fitBoardMobile() {
+    const board = document.getElementById('board');
+    const wrap  = board?.closest('.board-wrap');
+    const screenPuzzle = document.getElementById('screen-puzzle');
 
-  // 只有題目頁顯示時才動手
-  if (!board || !wrap || !screenPuzzle || !screenPuzzle.classList.contains('active')) {
-    return;
-  }
+    // 只有題目頁顯示時才動手
+    if (!board || !wrap || !screenPuzzle || !screenPuzzle.classList.contains('active')) {
+      return;
+    }
 
-  // 先重置，避免之前頁面的尺寸殘留
-  board.style.width = '';
-  board.style.height = '';
-
-  // 之後照你的計算邏輯繼續（桌機直接 return、算 viewH/viewW、topH/bottomH、finalW/H...）
-  // ...
-}
-
-
-    // 🟢 桌機時還原原始尺寸
+    // 桌機：還原原始尺寸
     if (!isMobile()) {
       board.style.width = '';
       board.style.height = '';
       return;
     }
 
-    // ===== 1. 取得畫面可用尺寸 =====
+    // 先重置，避免之前頁面的尺寸殘留
+    board.style.width = '';
+    board.style.height = '';
+
+    // 1) 可用視窗尺寸（兼容 iOS 工具列）
     const viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     const viewW = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
 
-    // 若 visualViewport 拿不到正確值，用 body 高度備援
     let availH = viewH;
     const bodyRect = document.body.getBoundingClientRect();
     if (bodyRect && bodyRect.height) {
       availH = Math.min(availH, bodyRect.height);
     }
 
-    // ===== 2. 扣除上方與下方工具區 =====
+    // 2) 扣掉上方/下方 UI
     const topbar = document.querySelector('#screen-puzzle .topbar');
     const title  = document.querySelector('#screen-puzzle .puzzle-title');
     const tools  = document.getElementById('paintToolbar');
@@ -895,10 +889,10 @@ function injectPWAStyles(){
     const topH    = (topbar?.offsetHeight || 0) + (title?.offsetHeight || 0);
     const bottomH = (tools?.offsetHeight || 0) + (footer?.offsetHeight || 0);
 
-    const safeGapY = 32; // 上下留白安全距
+    const safeGapY = 32;
     availH = Math.max(120, availH - topH - bottomH - safeGapY);
 
-    // ===== 3. 取得容器可用寬度 =====
+    // 3) 容器可用寬度
     const cs = getComputedStyle(wrap);
     const padL = parseFloat(cs.paddingLeft)  || 0;
     const padR = parseFloat(cs.paddingRight) || 0;
@@ -907,25 +901,24 @@ function injectPWAStyles(){
     const safeGapX = 24;
     const availW = Math.max(160, Math.min(innerWrapW, viewW - safeGapX));
 
-    // ===== 4. 根據 8:5 比例計算最終寬高 =====
+    // 4) 依 8:5 比例計算
     const hByW   = availW * (RATIO_H / RATIO_W);
     const finalH = Math.min(hByW, availH);
     const finalW = Math.min(availW, finalH * (RATIO_W / RATIO_H));
 
-    // ===== 5. 套用 CSS 尺寸（不改 canvas 內部畫布大小）=====
+    // 5) 套用 CSS 尺寸（不改 canvas 內部像素）
     board.style.width  = finalW + 'px';
     board.style.height = finalH + 'px';
   }
 
-  // 監聽視窗變化與畫面重繪
+  // 監聽與外部呼叫
   window.addEventListener('resize', fitBoardMobile);
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', fitBoardMobile);
   }
-
-  // 提供全域呼叫（openPuzzle 會呼叫它）
   window.__fitBoardMobile = fitBoardMobile;
 })();
+
 
 
 /* ---------- Badge Page helpers ---------- */
