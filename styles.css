@@ -25,7 +25,8 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 .screen.active {
-  display: block;             /* 只有當前頁顯示 */
+  display: flex;              /* 只有當前頁顯示，統一用 flex 撐版面 */
+  flex-direction: column;
 }
 
 /* 主要頁容器（僅 active 時套 Flex 排版） */
@@ -159,8 +160,15 @@ body {
   text-align: center; font-size: 32px; font-weight: 900; margin: 8px 0 6px;
 }
 .board-wrap {
-  flex: 1; display: flex; justify-content: center; align-items: center;
-  overflow: hidden; margin: 0; padding: 0 8px; max-height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;              /* 讓中段能在 flex 內收縮，避免高度被卡住 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  margin: 0;
+  padding: 0 8px;
+  max-height: 100%;
 }
 #board {
   display: block; max-width: 100%;
