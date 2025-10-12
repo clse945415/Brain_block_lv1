@@ -334,55 +334,70 @@ body{
   .lb-total{ min-width: 80px; padding: 3px 8px; }
 }
 
-/* === Level List：穩定排版，數字變動不跑版 === */
+/* === Level List：標題固定一行、進度自動縮小，不擠徽章 === */
 
-/* 外層 pill 仍用三欄：左(名稱+進度) | 徽章 | 箭頭 */
+/* 三欄：左(名稱+進度) | 徽章 | 箭頭 */
 .level-pill{
   display: grid;
-  grid-template-columns: 1fr 56px 56px;  /* 固定兩個圓的寬度 */
+  grid-template-columns: 1fr 56px 56px;
   align-items: center;
 }
 
-/* 左側區：允許收縮，名稱可截斷，進度固定寬 */
+/* 左側名稱 + 進度 */
 .level-left{
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  min-width: 0;              /* 關鍵：讓子項可縮 */
+  min-width: 0;
+  flex-wrap: nowrap;
 }
 
-/* 名稱：單行省略（不長高）；要兩行可把 line-clamp 改成 2 並移除 nowrap */
+/* 標題：永遠單行顯示，不換行、不截斷 */
 .level-title{
   flex: 1 1 auto;
-  min-width: 0;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  /* 若想最多兩行，改用以下三行並刪掉上面三行：
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  */
+  overflow: visible;
+  text-overflow: clip;
+  min-width: 0;
+  font-size: inherit;     /* 保持原大小 */
 }
 
-/* 進度數字：固定寬度、不換行、等寬數字，字再大也不撐開版面 */
+/* 通關數字：固定右側、可自動縮放寬度 */
 .level-progress{
-  flex: 0 0 72px;            /* 60~72px 都可；對 0/20～20/20 足夠 */
+  flex: 0 0 auto;
   text-align: right;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;   /* 等寬數字 */
+  font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+  min-width: 60px;
+  transition: transform 0.2s ease;
+  transform-origin: right center;
 }
 
-/* 兩個圓鈕固定大小，避免被擠壓 */
-.badge-circle, .enter-circle{
+/* 進度在小螢幕時自動微縮（保持整行不撐開） */
+@media (max-width: 480px) {
+  .level-left {
+    gap: 8px;
+  }
+  .level-progress {
+    font-size: clamp(12px, 3.8vw, 18px);  /* 根據螢幕寬縮放字體 */
+    transform: scaleX(0.9);               /* 寬度微壓縮 */
+  }
+}
+
+/* 防止徽章與箭頭被擠掉：強制固定寬度 */
+.badge-circle,
+.enter-circle {
+  flex: 0 0 56px;
   width: 56px;
   height: 56px;
-  flex: 0 0 56px;
+}
+@media (max-width: 420px){
+  .badge-circle, .enter-circle {
+    flex: 0 0 52px;
+    width: 52px;
+    height: 52px;
+  }
 }
 
-/* 手機再緊一點的調整 */
-@media (max-width: 420px){
-  .level-progress{ flex-basis: 60px; font-size: 15px; }
-  .badge-circle, .enter-circle{ width: 52px; height: 52px; flex-basis: 52px; }
-}
