@@ -238,24 +238,35 @@ function bindToolbar(){
   const first=$('#paintToolbar .tool[data-piece="I"]');
   if(first) first.classList.add('active');
 
-  $('#board').addEventListener('click',e=>{
-    const rect=e.target.getBoundingClientRect();
-    const x=e.clientX-rect.left, y=e.clientY-rect.top;
-    const meta=JSON.parse(e.target.dataset.cell||'{}');
-    if(!meta.cell) return;
-    const c=Math.floor((x-meta.ox)/meta.cell);
-    const r=Math.floor((y-meta.oy)/meta.cell);
-    if(r<0||r>=5||c<0||c>=8) return;
-    if(STATE.locked[r][c]) return; // 鎖定格不可改
-    const t=STATE.selectedPiece;
+  const boardEl = $('#board');
+
+  function handlePaintEvent(e){
+    // 避免手機滾動/雙指縮放干擾
+    if (e.cancelable) e.preventDefault();
+
+    const meta = JSON.parse(boardEl.dataset.cell || '{}');
+    if (!meta.cell) return;
+
+    const { x, y } = getCanvasPoint(e, boardEl); // 轉回 canvas 原生座標
+    const c = Math.floor((x - meta.ox) / meta.cell);
+    const r = Math.floor((y - meta.oy) / meta.cell);
+    if (r<0 || r>=5 || c<0 || c>=8) return;
+    if (STATE.locked[r][c]) return;
+
+    const t = STATE.selectedPiece;
     STATE.grid[r][c] = (t === '.') ? '.' : t;
 
-    // 寫入本地存檔（整盤）
     STATE.saves[STATE.currentQ] = STATE.grid.map(row => row.join(''));
     saveProgressToLocal();
 
-    drawBoard(); checkSolved();
-  });
+    drawBoard();
+    checkSolved();
+  }
+
+  // 用 pointer 事件涵蓋滑鼠/觸控/手寫筆；iOS 安全再補 touchstart
+  boardEl.addEventListener('pointerdown', handlePaintEvent);
+  boardEl.addEventListener('touchstart', handlePaintEvent, { passive: false });
+
 
   // 上/下一題
   $('#prevQ').addEventListener('click', ()=> navigateQ(-1));
@@ -824,6 +835,28 @@ function injectPWAStyles(){
     window.visualViewport.addEventListener('resize', fitBoardMobile);
   }
 
+function getCanvasPoint(e, cvs){
+  const rect = cvs.getBoundingClientRect();
+  let clientX, clientY;
+
+  // 支援觸控與滑鼠/筆
+  if (e.touches && e.touches[0]) {
+    clientX = e.touches[0].clientX;
+    clientY = e.touches[0].clientY;
+  } else {
+    clientX = e.clientX;
+    clientY = e.clientY;
+  }
+
+  // CSS -> canvas 原生座標轉換（關鍵！）
+  const xCss = clientX - rect.left;
+  const yCss = clientY - rect.top;
+  const scaleX = cvs.width  / rect.width;
+  const scaleY = cvs.height / rect.height;
+
+  return { x: xCss * scaleX, y: yCss * scaleY };
+}
+  
   // === 煙火特效 ===
 function showFireworks(targetSelector){
   const target = document.querySelector(targetSelector);
