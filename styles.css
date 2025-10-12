@@ -1,9 +1,12 @@
 *{box-sizing:border-box}
+html, body { overflow-x: hidden; height:100%; }
 body{
   margin:0;
   font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans TC',sans-serif;
   background:#1C6F73;
   color:#fff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 .screen{display:none;min-height:100vh;padding:12px}
 .screen.active{display:block}
@@ -21,8 +24,14 @@ body{
   font-weight:800;
   margin:12px 0;
   letter-spacing:1px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
-.nav-btn{background:transparent;border:none;padding:6px;border-radius:10px}
+.nav-btn{
+  background:transparent;border:none;padding:6px;border-radius:10px;
+  -webkit-tap-highlight-color: transparent;
+}
 
 /* Puzzle header（左返回｜中進度｜右排行榜） */
 .puzzle-topbar{
@@ -44,8 +53,14 @@ body{
 /* ---------- Cover ---------- */
 .cover-top img{display:block;max-width:720px;width:100%;margin:0 auto;border-radius:12px}
 .cover-form{display:flex;flex-direction:column;gap:12px;max-width:420px;margin:18px auto 0}
-.cover-form input{padding:12px 14px;border-radius:10px;border:2px solid #eae6da;font-size:18px}
-.cover-form button{padding:12px;border:none;border-radius:10px;background:#eae6da;color:#114a4d;font-weight:700;font-size:18px}
+.cover-form input{
+  padding:12px 14px;border-radius:10px;border:2px solid #eae6da;font-size:18px;
+  -webkit-tap-highlight-color: transparent;
+}
+.cover-form button{
+  padding:12px;border:none;border-radius:10px;background:#eae6da;color:#114a4d;font-weight:700;font-size:18px;
+  -webkit-tap-highlight-color: transparent;
+}
 
 /* ---------- Level List（名稱靠左大字｜同列右側 0/20｜更右側徽章｜最右箭頭） ---------- */
 .level-list{
@@ -98,6 +113,7 @@ body{
 }
 .badge-circle img{
   width:36px; height:36px; object-fit:contain; opacity:.9;
+  pointer-events:none;
 }
 
 /* 箭頭按鈕 */
@@ -108,8 +124,9 @@ body{
   background:rgba(17,74,77,.15);
   display:flex; align-items:center; justify-content:center;
   cursor:pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.enter-circle img{ width:26px; height:26px; }
+.enter-circle img{ width:26px; height:26px; pointer-events:none; }
 
 /* 小螢幕微調 */
 @media (max-width: 420px){
@@ -127,17 +144,39 @@ body{
   font-weight:900;
   margin:8px 0 6px;
 }
-.board-wrap{ display:flex; justify-content:center; margin:8px 0 10px; }
+
+/* 只縮放棋盤，不影響畫布內像素 */
+.board-wrap{
+  display:flex;
+  justify-content:center;
+  margin:8px 0 10px;
+  overflow: visible;           /* 不裁切陰影 */
+  padding-inline: 8px;         /* 輕微留白，不影響 JS 計算 */
+  max-width: 100dvw;
+  touch-action: none;
+}
 #board{
+  display:block;               /* 避免 inline-canvas 造成對齊縫隙 */
+  max-width:100%;
   background:#F7F7F7;
   border-radius:12px;
   box-shadow:0 0 0 10px #eae6da inset; /* 米白外框 */
+  touch-action:none;           /* ✅ 關鍵：不要把觸控當捲動/縮放 */
+  -webkit-tap-highlight-color: transparent;
+  user-select:none;
+  cursor: pointer;
 }
 
 /* 上色工具列 */
-.toolbar{ display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin:6px 0 10px; }
-.toolbar .tool{ background:#fff; border:2px solid #eae6da; border-radius:10px; padding:6px; outline:none; }
-.toolbar img{ height:40px; }
+.toolbar{
+  display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin:6px 0 10px;
+  user-select:none;
+}
+.toolbar .tool{
+  background:#fff; border:2px solid #eae6da; border-radius:10px; padding:6px; outline:none;
+  -webkit-tap-highlight-color: transparent;
+}
+.toolbar img{ height:40px; pointer-events:none; }
 .tool.active{
   border-color:#114a4d;
   box-shadow:
@@ -145,12 +184,19 @@ body{
     0 0 0 3px #114a4d;                     /* 外黑框更粗 */
   transform: translateY(-1px);
 }
+/* 若你確定要厚邊框外觀，保留；不需要的話可以移除這行 */
 .toolbar .tool{ border:10px solid #eae6da; } /* 未選狀態維持原樣 */
 
 /* 底部：上一題｜小小未答｜下一題 */
-.puzzle-footer{ display:flex; align-items:center; justify-content:center; gap:18px; margin:12px 0 24px; }
-.pill{ background:#fff; color:#114a4d; border:2px solid #eae6da; border-radius:999px; padding:8px 14px; font-weight:800; }
-.status-small{ width:42px; height:42px; display:block; }
+.puzzle-footer{
+  display:flex; align-items:center; justify-content:center; gap:18px; margin:12px 0 24px;
+  -webkit-tap-highlight-color: transparent;
+}
+.pill{
+  background:#fff; color:#114a4d; border:2px solid #eae6da; border-radius:999px; padding:8px 14px; font-weight:800;
+  user-select:none;
+}
+.status-small{ width:42px; height:42px; display:block; pointer-events:none; }
 
 /* ---------- Badges & Leaderboard ---------- */
 .badge-wrap{display:flex;justify-content:center;margin:20px 0}
@@ -174,6 +220,7 @@ body{
   width:28px;
   height:28px;
   display:block;
+  pointer-events:none;
 }
 
 /* Leaderboard 進度條 (5 關) */
@@ -234,20 +281,3 @@ body{
   width:0%;
   background:#eae6da;        /* 會用 JS 覆蓋顏色與寬度 */
 }
-
-/* 只限制棋盤區的溢出，避免被外框陰影撐出 */
-#screen-puzzle .board-wrap { overflow: hidden; }
-/* 避免整頁出現橫向捲動造成誤判 */
-html, body { overflow-x: hidden; }
-
-/* 容器不裁切棋盤、留一點內距但不影響計算 */
-.board-wrap {
-  overflow: visible;
-  padding-inline: 8px;      /* 若你想要更窄，設 4~8px */
-  margin: 0 auto;
-  max-width: 100dvw;        /* 不超過可見寬 */
-}
-
-/* 棋盤本身允許縮到容器以內 */
-#board { max-width: 100%; }
-
