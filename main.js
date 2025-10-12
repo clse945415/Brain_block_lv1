@@ -818,7 +818,7 @@ function injectPWAStyles(){
   // 可選：go('levels');
 })();
 
-/* === 只縮放 5×8 棋盤（手機），其他排版不動 === */
+/* === 只縮放 5×8 棋盤（手機），其他排版不動：新版防溢出版 === */
 (function setupMobileBoardFit(){
   const RATIO_W = 8, RATIO_H = 5;
   const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
@@ -828,48 +828,65 @@ function injectPWAStyles(){
     const wrap  = board?.closest('.board-wrap');
     if (!board || !wrap) return;
 
-    if (!isMobile()) { 
-      board.style.width = ''; 
-      board.style.height = ''; 
-      return; 
+    // 🟢 桌機時還原原始尺寸
+    if (!isMobile()) {
+      board.style.width = '';
+      board.style.height = '';
+      return;
     }
 
+    // ===== 1. 取得畫面可用尺寸 =====
+    const viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    const viewW = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
+
+    // 若 visualViewport 拿不到正確值，用 body 高度備援
+    let availH = viewH;
+    const bodyRect = document.body.getBoundingClientRect();
+    if (bodyRect && bodyRect.height) {
+      availH = Math.min(availH, bodyRect.height);
+    }
+
+    // ===== 2. 扣除上方與下方工具區 =====
     const topbar = document.querySelector('#screen-puzzle .topbar');
     const title  = document.querySelector('#screen-puzzle .puzzle-title');
     const tools  = document.getElementById('paintToolbar');
     const footer = document.querySelector('#screen-puzzle .puzzle-footer');
 
-    const viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    const viewW = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
-
     const topH    = (topbar?.offsetHeight || 0) + (title?.offsetHeight || 0);
     const bottomH = (tools?.offsetHeight || 0) + (footer?.offsetHeight || 0);
-    const safeGapY = 24;
-    const availH = Math.max(100, viewH - topH - bottomH - safeGapY);
 
+    const safeGapY = 32; // 上下留白安全距
+    availH = Math.max(120, availH - topH - bottomH - safeGapY);
+
+    // ===== 3. 取得容器可用寬度 =====
     const cs = getComputedStyle(wrap);
     const padL = parseFloat(cs.paddingLeft)  || 0;
     const padR = parseFloat(cs.paddingRight) || 0;
     const innerWrapW = Math.max(0, wrap.clientWidth - padL - padR);
 
     const safeGapX = 24;
-    const availW = Math.max(120, Math.min(innerWrapW, viewW - safeGapX));
+    const availW = Math.max(160, Math.min(innerWrapW, viewW - safeGapX));
 
+    // ===== 4. 根據 8:5 比例計算最終寬高 =====
     const hByW   = availW * (RATIO_H / RATIO_W);
     const finalH = Math.min(hByW, availH);
-    const finalW = finalH * (RATIO_W / RATIO_H);
+    const finalW = Math.min(availW, finalH * (RATIO_W / RATIO_H));
 
+    // ===== 5. 套用 CSS 尺寸（不改 canvas 內部畫布大小）=====
     board.style.width  = finalW + 'px';
     board.style.height = finalH + 'px';
   }
 
+  // 監聽視窗變化與畫面重繪
   window.addEventListener('resize', fitBoardMobile);
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', fitBoardMobile);
   }
 
+  // 提供全域呼叫（openPuzzle 會呼叫它）
   window.__fitBoardMobile = fitBoardMobile;
 })();
+
 
 /* ---------- Badge Page helpers ---------- */
 // 顯示大徽章頁（由選關小徽章點擊，或通關後呼叫）
