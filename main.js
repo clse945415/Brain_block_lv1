@@ -15,6 +15,80 @@ let STATE = {
 const $  = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
+/* ---------- Utils (Global) ---------- */
+// 轉 CSS 像素 -> canvas 原生座標（解決 CSS 縮放後點擊偏移）
+function getCanvasPoint(e, cvs){
+  const rect = cvs.getBoundingClientRect();
+  let clientX, clientY;
+  if (e.touches && e.touches[0]) {
+    clientX = e.touches[0].clientX;
+    clientY = e.touches[0].clientY;
+  } else {
+    clientX = e.clientX;
+    clientY = e.clientY;
+  }
+  const xCss = clientX - rect.left;
+  const yCss = clientY - rect.top;
+  const scaleX = cvs.width  / rect.width;
+  const scaleY = cvs.height / rect.height;
+  return { x: xCss * scaleX, y: yCss * scaleY };
+}
+
+// 煙火特效（完成時在狀態按鈕位置綻放）
+function showFireworks(targetSelector){
+  const target = document.querySelector(targetSelector);
+  if (!target) return;
+
+  const rect = target.getBoundingClientRect();
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.position = 'fixed';
+  canvas.style.left = 0;
+  canvas.style.top = 0;
+  canvas.style.pointerEvents = 'none';
+  canvas.style.zIndex = 9999;
+  document.body.appendChild(canvas);
+
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+
+  const particles = [];
+  const colors = ['#FFDD94','#FA897B','#86E3CE','#CCABD8','#D0E6A5'];
+
+  for (let i = 0; i < 80; i++) {
+    const angle = Math.random() * 2 * Math.PI;
+    const speed = Math.random() * 4 + 2;
+    particles.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r: Math.random() * 3 + 2,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      life: 60 + Math.random() * 20
+    });
+  }
+
+  function animate(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for (const p of particles) {
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.life--;
+    }
+    for (let i=particles.length-1;i>=0;i--) {
+      if (particles[i].life<=0) particles.splice(i,1);
+    }
+    if (particles.length>0) requestAnimationFrame(animate);
+    else canvas.remove();
+  }
+  animate();
+  setTimeout(()=>canvas.remove(), 2000);
+}
+
 /* ---------- LocalStorage ---------- */
 const LS_KEYS = {
   name: 'bb_player_name',
@@ -239,6 +313,7 @@ function bindToolbar(){
   if(first) first.classList.add('active');
 
   const boardEl = $('#board');
+  if (!boardEl) return;
 
   function handlePaintEvent(e){
     // 避免手機滾動/雙指縮放干擾
@@ -266,7 +341,6 @@ function bindToolbar(){
   // 用 pointer 事件涵蓋滑鼠/觸控/手寫筆；iOS 安全再補 touchstart
   boardEl.addEventListener('pointerdown', handlePaintEvent);
   boardEl.addEventListener('touchstart', handlePaintEvent, { passive: false });
-
 
   // 上/下一題
   $('#prevQ').addEventListener('click', ()=> navigateQ(-1));
@@ -460,7 +534,6 @@ async function pushProgress(){
     if (navigator.sendBeacon) {
       const ok = navigator.sendBeacon(url, data);
       if (ok) return;
-      // sendBeacon 回 false 才走備援
     }
 
     // ---- 備援：no-cors + text/plain（同樣不預檢）----
@@ -504,52 +577,49 @@ async function loadLeaderboard(){
     const rows = data.data;
     list.innerHTML = '';
     const MAX_PER_LEVEL = 20;
-const TOTAL_MAX = (STATE?.levels?.length || 5) * MAX_PER_LEVEL;
-const LV_COLORS = ['I','O','L','T','S']; // 取用 config.colors 中的顏色
+    const TOTAL_MAX = (STATE?.levels?.length || 5) * MAX_PER_LEVEL;
+    const LV_COLORS = ['I','O','L','T','S']; // 取用 config.colors 中的顏色
 
-list.innerHTML = '';
-rows.forEach((r, i) => {
-  const name  = r.player_name || `玩家${i+1}`;
-  const lvVals = [
-    Number(r.L1)||0,
-    Number(r.L2)||0,
-    Number(r.L3)||0,
-    Number(r.L4)||0,
-    Number(r.L5)||0
-  ];
+    rows.forEach((r, i) => {
+      const name  = r.player_name || `玩家${i+1}`;
+      const lvVals = [
+        Number(r.L1)||0,
+        Number(r.L2)||0,
+        Number(r.L3)||0,
+        Number(r.L4)||0,
+        Number(r.L5)||0
+      ];
 
-  // 總數：若後端有 total_cleared 就用，否則用 L1~L5 相加
-  const total = Math.min(
-    TOTAL_MAX,
-    Number(r.total_cleared ?? lvVals.reduce((a,b)=>a+b,0)) || 0
-  );
-  const totalText = `${total} / ${TOTAL_MAX}`;
+      // 總數：若後端有 total_cleared 就用，否則用 L1~L5 相加
+      const total = Math.min(
+        TOTAL_MAX,
+        Number(r.total_cleared ?? lvVals.reduce((a,b)=>a+b,0)) || 0
+      );
+      const totalText = `${total} / ${TOTAL_MAX}`;
 
-  // 產生每一條關卡進度條（顏色取自 config.colors）
-  const barsHtml = lvVals.map((v, idx) => {
-    const pct = Math.max(0, Math.min(100, Math.round((v / MAX_PER_LEVEL) * 100)));
-    const colorKey = LV_COLORS[idx] || null;
-    const barColor = (colorKey && STATE?.config?.colors?.[colorKey]) || '#eae6da';
-    return `<div class="lb-bar"><i style="width:${pct}%; background:${barColor}"></i></div>`;
-  }).join('');
+      // 產生每一條關卡進度條（顏色取自 config.colors）
+      const barsHtml = lvVals.map((v, idx) => {
+        const pct = Math.max(0, Math.min(100, Math.round((v / MAX_PER_LEVEL) * 100)));
+        const colorKey = LV_COLORS[idx] || null;
+        const barColor = (colorKey && STATE?.config?.colors?.[colorKey]) || '#eae6da';
+        return `<div class="lb-bar"><i style="width:${pct}%; background:${barColor}"></i></div>`;
+      }).join('');
 
-  const row = document.createElement('div');
-  row.className = 'lb-row';
-  row.innerHTML = `
-    <div class="lb-name">${i+1}. ${name}</div>
-    <div class="lb-total">${totalText}</div>
-    <div class="lb-bars">${barsHtml}</div>
-  `;
-  list.appendChild(row);
-});
+      const row = document.createElement('div');
+      row.className = 'lb-row';
+      row.innerHTML = `
+        <div class="lb-name">${i+1}. ${name}</div>
+        <div class="lb-total">${totalText}</div>
+        <div class="lb-bars">${barsHtml}</div>
+      `;
+      list.appendChild(row);
+    });
 
   } catch (e) {
     console.warn('loadLeaderboard failed', e);
     list.textContent = '排行榜暫不提供或伺服器離線';
   }
 }
-
-
 
 /* ---------- Nav ---------- */
 function initNav(){
@@ -779,8 +849,8 @@ function injectPWAStyles(){
   // 可選：go('levels'); // 若想直接看到關卡列表
 })();
 
-// === 只縮放 5×8 棋盤（手機），其他排版不動 ===
-// 不改 canvas 的屬性寬高，只改「行內 CSS 尺寸」以保持比例 8:5。
+/* === 只縮放 5×8 棋盤（手機），其他排版不動 ===
+   不改 canvas 的屬性寬高，只改「行內 CSS 尺寸」以保持比例 8:5。 */
 (function setupMobileBoardFit(){
   const RATIO_W = 8, RATIO_H = 5;
   const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
@@ -824,7 +894,7 @@ function injectPWAStyles(){
     const finalH = Math.min(hByW, availH);
     const finalW = finalH * (RATIO_W / RATIO_H);
 
-    // 4) 套尺寸
+    // 4) 套尺寸（行內 CSS）
     board.style.width  = finalW + 'px';
     board.style.height = finalH + 'px';
   }
@@ -834,93 +904,6 @@ function injectPWAStyles(){
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', fitBoardMobile);
   }
-
-function getCanvasPoint(e, cvs){
-  const rect = cvs.getBoundingClientRect();
-  let clientX, clientY;
-
-  // 支援觸控與滑鼠/筆
-  if (e.touches && e.touches[0]) {
-    clientX = e.touches[0].clientX;
-    clientY = e.touches[0].clientY;
-  } else {
-    clientX = e.clientX;
-    clientY = e.clientY;
-  }
-
-  // CSS -> canvas 原生座標轉換（關鍵！）
-  const xCss = clientX - rect.left;
-  const yCss = clientY - rect.top;
-  const scaleX = cvs.width  / rect.width;
-  const scaleY = cvs.height / rect.height;
-
-  return { x: xCss * scaleX, y: yCss * scaleY };
-}
-  
-  // === 煙火特效 ===
-function showFireworks(targetSelector){
-  const target = document.querySelector(targetSelector);
-  if (!target) return;
-
-  const rect = target.getBoundingClientRect();
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  canvas.style.position = 'fixed';
-  canvas.style.left = 0;
-  canvas.style.top = 0;
-  canvas.style.pointerEvents = 'none';
-  canvas.style.zIndex = 9999;
-  document.body.appendChild(canvas);
-
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top + rect.height / 2;
-
-  const particles = [];
-  const colors = ['#FFDD94','#FA897B','#86E3CE','#CCABD8','#D0E6A5'];
-
-  for (let i = 0; i < 80; i++) {
-    const angle = Math.random() * 2 * Math.PI;
-    const speed = Math.random() * 4 + 2;
-    particles.push({
-      x: cx,
-      y: cy,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      r: Math.random() * 3 + 2,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      life: 60 + Math.random() * 20
-    });
-  }
-
-  function animate(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    for (const p of particles) {
-      ctx.beginPath();
-      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fillStyle = p.color;
-      ctx.fill();
-
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.05; // 重力
-      p.life--;
-    }
-    for (let i=particles.length-1;i>=0;i--){
-      if(particles[i].life<=0) particles.splice(i,1);
-    }
-    if (particles.length>0){
-      requestAnimationFrame(animate);
-    } else {
-      canvas.remove();
-    }
-  }
-  animate();
-
-  // 自動移除 canvas 避免殘留
-  setTimeout(()=>canvas.remove(), 2000);
-}
 
   // 對外保留一個可呼叫的函式（進入題目頁時呼叫）
   window.__fitBoardMobile = fitBoardMobile;
