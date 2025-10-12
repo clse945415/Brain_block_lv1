@@ -333,3 +333,56 @@ body{
   .lb-row{ gap: 8px; padding: 8px 10px; }
   .lb-total{ min-width: 80px; padding: 3px 8px; }
 }
+
+/* === Level List：穩定排版，數字變動不跑版 === */
+
+/* 外層 pill 仍用三欄：左(名稱+進度) | 徽章 | 箭頭 */
+.level-pill{
+  display: grid;
+  grid-template-columns: 1fr 56px 56px;  /* 固定兩個圓的寬度 */
+  align-items: center;
+}
+
+/* 左側區：允許收縮，名稱可截斷，進度固定寬 */
+.level-left{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;              /* 關鍵：讓子項可縮 */
+}
+
+/* 名稱：單行省略（不長高）；要兩行可把 line-clamp 改成 2 並移除 nowrap */
+.level-title{
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* 若想最多兩行，改用以下三行並刪掉上面三行：
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  */
+}
+
+/* 進度數字：固定寬度、不換行、等寬數字，字再大也不撐開版面 */
+.level-progress{
+  flex: 0 0 72px;            /* 60~72px 都可；對 0/20～20/20 足夠 */
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;   /* 等寬數字 */
+  font-feature-settings: "tnum";
+}
+
+/* 兩個圓鈕固定大小，避免被擠壓 */
+.badge-circle, .enter-circle{
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+}
+
+/* 手機再緊一點的調整 */
+@media (max-width: 420px){
+  .level-progress{ flex-basis: 60px; font-size: 15px; }
+  .badge-circle, .enter-circle{ width: 52px; height: 52px; flex-basis: 52px; }
+}
