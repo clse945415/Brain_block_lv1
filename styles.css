@@ -73,14 +73,41 @@ body{
   transform-origin:right center; transition:transform .2s ease;
 }
 /* 徽章＆箭頭固定尺寸，避免被擠 */
-.badge-circle, .enter-circle{
-  width:56px; height:56px; flex:0 0 56px; border-radius:50%;
+.badge-circle, .enter-circle {
+  width:56px; height:56px; flex:0 0 56px;
+  border-radius:50%;
   display:flex; align-items:center; justify-content:center;
 }
-.badge-circle{ background:rgba(17,74,77,.08); }
-.badge-circle img{ width:36px; height:36px; object-fit:contain; opacity:.9; pointer-events:none; }
-.enter-circle{ border:none; background:rgba(17,74,77,.15); cursor:pointer; -webkit-tap-highlight-color:transparent; }
-.enter-circle img{ width:26px; height:26px; pointer-events:none; }
+
+/* ✅ 外圈：保持圓形並裁切邊緣 */
+.badge-circle {
+  background: rgba(17,74,77,.08);
+  overflow: hidden;                /* 重要：讓內圖完全貼齊外圈 */
+}
+
+/* ✅ 內圖：填滿外圈，不再固定36px */
+.badge-circle img {
+  width:100%;                      /* 改成百分比 */
+  height:100%;
+  border-radius:50%;               /* 讓內外皆為圓形 */
+  object-fit:cover;                /* 讓圖片鋪滿不變形 */
+  display:block;                   /* 消除img預設空隙 */
+  opacity:.9;
+  pointer-events:none;
+}
+
+/* ✅ 箭頭保持原樣 */
+.enter-circle {
+  border:none;
+  background:rgba(17,74,77,.15);
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.enter-circle img {
+  width:26px; height:26px;
+  pointer-events:none;
+}
+
 
 /* Level List - 小螢幕微調 */
 @media (max-width: 480px){
@@ -91,7 +118,7 @@ body{
   .level-title{ font-size:24px; }
   .level-progress{ font-size:16px; }
   .badge-circle, .enter-circle{ width:52px; height:52px; flex-basis:52px; }
-  .badge-circle img{ width:32px; height:32px; }
+  /* 小螢幕徽章圖依然填滿整個圓 */
   .enter-circle img{ width:24px; height:24px; }
 }
 
