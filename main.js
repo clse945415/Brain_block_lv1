@@ -127,9 +127,30 @@ async function loadData(){
 
 /* ---------- Page Switch ---------- */
 function go(screenId){
+  const prevActive = document.querySelector('.screen.active');
+
   $$('.screen').forEach(s=>s.classList.remove('active'));
-  $('#screen-'+screenId).classList.add('active');
+  const scr = $('#screen-'+screenId);
+  scr.classList.add('active');
+
+  // 離開題目頁：清掉 canvas 行內尺寸，避免殘留撐高
+  if (prevActive && prevActive.id === 'screen-puzzle' && screenId !== 'puzzle') {
+    const board = document.getElementById('board');
+    if (board) { board.style.width = ''; board.style.height = ''; }
+  }
+
+  // 進入題目頁：捲回頂端並在下一幀做 fit
+  if (screenId === 'puzzle') {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    scr.scrollTop = 0;
+    requestAnimationFrame(()=>{
+      if (typeof window.__fitBoardMobile === 'function') {
+        window.__fitBoardMobile();
+      }
+    });
+  }
 }
+
 
 /* ---------- Cover ---------- */
 function initCover(){
@@ -270,11 +291,16 @@ function openPuzzle(id){
   drawBoard();
   go('puzzle');
 
-  // 手機尺寸調整
+// 回到頁面頂端，避免沿用上一頁的捲動位置
+window.scrollTo({ top: 0, behavior: 'instant' });
+
+// 下一幀再 fit，確保 DOM 尺寸量到正確
+requestAnimationFrame(()=>{
   if (typeof window.__fitBoardMobile === 'function') {
-    setTimeout(window.__fitBoardMobile, 0);
+    window.__fitBoardMobile();
   }
-}
+});
+
 
 function updateLevelProgressForCurrentQ(){
   const lv=STATE.levels.find(l=>STATE.currentQ>=l.range[0]&&STATE.currentQ<=l.range[1]);
@@ -823,10 +849,24 @@ function injectPWAStyles(){
   const RATIO_W = 8, RATIO_H = 5;
   const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
 
-  function fitBoardMobile() {
-    const board = document.getElementById('board');
-    const wrap  = board?.closest('.board-wrap');
-    if (!board || !wrap) return;
+ function fitBoardMobile() {
+  const board = document.getElementById('board');
+  const wrap  = board?.closest('.board-wrap');
+  const screenPuzzle = document.getElementById('screen-puzzle');
+
+  // 只有題目頁顯示時才動手
+  if (!board || !wrap || !screenPuzzle || !screenPuzzle.classList.contains('active')) {
+    return;
+  }
+
+  // 先重置，避免之前頁面的尺寸殘留
+  board.style.width = '';
+  board.style.height = '';
+
+  // 之後照你的計算邏輯繼續（桌機直接 return、算 viewH/viewW、topH/bottomH、finalW/H...）
+  // ...
+}
+
 
     // 🟢 桌機時還原原始尺寸
     if (!isMobile()) {
