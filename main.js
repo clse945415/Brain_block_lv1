@@ -153,32 +153,46 @@ function renderLevelList(){
   const ul = $('#levelList');
   if(!ul) return;
   ul.innerHTML = '';
+
   for(const lv of STATE.levels){
     const li = document.createElement('li');
     li.className = 'level-pill';
 
-    const unlocked = isLevelCleared(lv)
+    const clearedCnt = countSolvedInRange(lv.range);
+    const isUnlocked = clearedCnt === 20;
+
+    const badgeSrc = isUnlocked
       ? `public/badges/${lv.badge}_unlocked.png`
       : `public/badges/${lv.badge}_locked.svg`;
 
-    const progress = `${countSolvedInRange(lv.range)} / 20`;
+    const progress = `${clearedCnt} / 20`;
 
     li.innerHTML = `
       <div class="level-left">
         <div class="level-title">${lv.name}</div>
         <div class="level-progress">${progress}</div>
       </div>
-      <div class="badge-circle"><img src="${unlocked}" alt=""></div>
+      <div class="badge-circle ${isUnlocked ? 'is-unlocked' : ''}">
+        <img src="${badgeSrc}" alt="">
+      </div>
       <button class="enter-circle" aria-label="進入 ${lv.name}">
         <img src="public/icons/nav/arrow_next.svg" alt="">
       </button>
     `;
 
+    // 進入該關（箭頭）
     li.querySelector('.enter-circle').addEventListener('click', ()=>{
       const [a,b] = lv.range;
       let q = a;
       for(let i=a;i<=b;i++){ if(!STATE.solved.has(i)) { q=i; break; } }
       openPuzzle(q);
+    });
+
+    // ✅ 小徽章 → 大徽章頁（只有該關達成 20/20 才可點）
+    li.querySelector('.badge-circle').addEventListener('click', ()=>{
+      if (!isUnlocked) return;
+      const levelIndex = STATE.levels.findIndex(x => x === lv) + 1; // 1-based
+      showBadgePage(levelIndex);
     });
 
     ul.appendChild(li);
@@ -256,9 +270,9 @@ function openPuzzle(id){
   drawBoard();
   go('puzzle');
 
-  // ✅ 進入題目頁後做一次手機尺寸調整（行內 CSS 寬高）
+  // 手機尺寸調整
   if (typeof window.__fitBoardMobile === 'function') {
-    setTimeout(window.__fitBoardMobile, 0); // 等畫面切換完成再量測
+    setTimeout(window.__fitBoardMobile, 0);
   }
 }
 
@@ -316,13 +330,12 @@ function bindToolbar(){
   if (!boardEl) return;
 
   function handlePaintEvent(e){
-    // 避免手機滾動/雙指縮放干擾
     if (e.cancelable) e.preventDefault();
 
     const meta = JSON.parse(boardEl.dataset.cell || '{}');
     if (!meta.cell) return;
 
-    const { x, y } = getCanvasPoint(e, boardEl); // 轉回 canvas 原生座標
+    const { x, y } = getCanvasPoint(e, boardEl);
     const c = Math.floor((x - meta.ox) / meta.cell);
     const r = Math.floor((y - meta.oy) / meta.cell);
     if (r<0 || r>=5 || c<0 || c>=8) return;
@@ -338,7 +351,6 @@ function bindToolbar(){
     checkSolved();
   }
 
-  // 用 pointer 事件涵蓋滑鼠/觸控/手寫筆；iOS 安全再補 touchstart
   boardEl.addEventListener('pointerdown', handlePaintEvent);
   boardEl.addEventListener('touchstart', handlePaintEvent, { passive: false });
 
@@ -346,7 +358,7 @@ function bindToolbar(){
   $('#prevQ').addEventListener('click', ()=> navigateQ(-1));
   $('#nextQ').addEventListener('click', ()=> navigateQ(+1));
 
-  // 右上🏆：先切頁後讀取（避免失敗卡住）
+  // 右上🏆：先切頁後讀取
   const lbBtn = $('#btnToLeaderboard');
   if (lbBtn) lbBtn.addEventListener('click', () => {
     go('leaderboard');
@@ -529,14 +541,14 @@ async function pushProgress(){
       puzzle_id: STATE.currentQ
     };
 
-    // ---- 優先：sendBeacon（不會預檢，最穩定）----
+    // 優先：sendBeacon
     const data = new Blob([JSON.stringify(payload)], { type: 'text/plain;charset=UTF-8' });
     if (navigator.sendBeacon) {
       const ok = navigator.sendBeacon(url, data);
       if (ok) return;
     }
 
-    // ---- 備援：no-cors + text/plain（同樣不預檢）----
+    // 備援：no-cors + text/plain
     fetch(url, {
       method: 'POST',
       mode: 'no-cors',
@@ -580,7 +592,6 @@ async function loadLeaderboard(){
       const total = Math.min(TOTAL_MAX, Number(r.total_cleared ?? lvVals.reduce((a,b)=>a+b,0)) || 0);
       const totalText = `${total} / ${TOTAL_MAX}`;
 
-      // ✅ 簡化顯示樣式，只顯示名稱與總進度
       const row = document.createElement('div');
       row.className = 'lb-row simple';
       row.innerHTML = `
@@ -597,7 +608,6 @@ async function loadLeaderboard(){
   }
 }
 
-
 /* ---------- Nav ---------- */
 function initNav(){
   // 返回
@@ -610,12 +620,11 @@ function initNav(){
   $$('#screen-badge .topbar .nav-btn').forEach(btn =>
     btn.addEventListener('click', () => go('levels'))
   );
-  // 排行榜頁返回（HTML 已有返回鍵）
+  // 排行榜頁返回
   const lbBack = document.querySelector('#screen-leaderboard .topbar .nav-btn');
   if (lbBack) lbBack.addEventListener('click', () => go('levels'));
 
-  const btnBadgeNext = $('#btnBadgeNext');
-  if (btnBadgeNext) btnBadgeNext.addEventListener('click', () => go('levels'));
+  // ▼ 不在這裡綁 #btnBadgeNext，改由 showBadgePage() 動態指定下一關
 }
 
 /* ---------- PWA Install (Add to Home Screen) ---------- */
@@ -633,7 +642,6 @@ function setupPWA(){
 
 function registerServiceWorker(){
   if ('serviceWorker' in navigator) {
-    // 你的 sw.js 放在根目錄或與 index.html 同層
     navigator.serviceWorker.register('./sw.js').catch(err=>{
       console.warn('[PWA] SW register failed:', err);
     });
@@ -641,32 +649,24 @@ function registerServiceWorker(){
 }
 
 function isStandalone(){
-  // Android/桌面：display-mode；iOS Safari：navigator.standalone
   const dm = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
   return dm || window.navigator.standalone === true;
 }
 
 let _deferredPrompt = null;
 function setupInstallPrompt(){
-  // 動態注入最小樣式
   injectPWAStyles();
-
-  // 如果已是安裝狀態就不顯示
   if (isStandalone()) return;
 
   window.addEventListener('beforeinstallprompt', (e)=>{
-    // 阻止瀏覽器自己跳出小框框，改成自家按鈕
     e.preventDefault();
     _deferredPrompt = e;
-
-    // 若使用者沒有永久關閉，顯示安裝浮動按鈕
     if (!localStorage.getItem(PWA_LS.installDismissed)) {
       renderInstallFAB();
     }
   });
 
   window.addEventListener('appinstalled', ()=>{
-    // 安裝成功：收起提示
     removeNode('#bb-install-fab');
     removeNode('#bb-ios-tip');
     _deferredPrompt = null;
@@ -683,25 +683,21 @@ function renderInstallFAB(){
 
   btn.addEventListener('click', async ()=>{
     if (!_deferredPrompt) {
-      // 沒拿到事件，代表瀏覽器不支援或已安裝
       btn.classList.add('bb-hide');
       return;
     }
     _deferredPrompt.prompt();
     try{
       const choice = await _deferredPrompt.userChoice;
-      // 使用者選擇後，不論接受或取消，都先把 _deferredPrompt 清掉
       _deferredPrompt = null;
-      // 若取消，保留按鈕讓他之後再安裝；若安裝成功，系統會觸發 appinstalled 事件
       if (choice && choice.outcome === 'dismissed') {
-        // 什麼都不做，讓他可以再按
+        // 保留按鈕讓他之後再安裝
       }
     }catch(e){
       console.warn('[PWA] userChoice error:', e);
     }
   });
 
-  // 右上角關閉叉叉
   const close = document.createElement('span');
   close.className = 'bb-fab-close';
   close.innerHTML = '&times;';
@@ -717,16 +713,14 @@ function renderInstallFAB(){
 }
 
 function showIOSTipIfNeeded(){
-  // iOS Safari 沒有 beforeinstallprompt，要教他用「分享 -> 加入主畫面」
   const ua = window.navigator.userAgent || '';
   const isIOS = /iPad|iPhone|iPod/i.test(ua);
-  const isSafari = isIOS && !!window.webkit && !!window.webkit.messageHandlers === false; // 大致辨識
+  const isSafari = isIOS && !!window.webkit && !!window.webkit.messageHandlers === false;
   const alreadyDismissed = localStorage.getItem(PWA_LS.iosTipDismissed);
 
   if (isStandalone() || !isIOS) return;
   if (alreadyDismissed) return;
 
-  // 顯示 iOS 導引條
   if (!document.querySelector('#bb-ios-tip')) {
     const bar = document.createElement('div');
     bar.id = 'bb-ios-tip';
@@ -747,7 +741,6 @@ function showIOSTipIfNeeded(){
 }
 
 function watchDisplayMode(){
-  // 監聽顯示模式變化（Chrome/Android）
   if (window.matchMedia) {
     const mm = window.matchMedia('(display-mode: standalone)');
     if (mm && mm.addEventListener) {
@@ -813,21 +806,19 @@ function injectPWAStyles(){
   document.head.appendChild(style);
 }
 
-
 /* ---------- Boot ---------- */
 (async function(){
-  loadProgressFromLocal();        // 優先載本地存檔
+  loadProgressFromLocal();
   await loadData();
   initCover();
   bindToolbar();
   initNav();
   renderLevelList();
   setupPWA();
-  // 可選：go('levels'); // 若想直接看到關卡列表
+  // 可選：go('levels');
 })();
 
-/* === 只縮放 5×8 棋盤（手機），其他排版不動 ===
-   不改 canvas 的屬性寬高，只改「行內 CSS 尺寸」以保持比例 8:5。 */
+/* === 只縮放 5×8 棋盤（手機），其他排版不動 === */
 (function setupMobileBoardFit(){
   const RATIO_W = 8, RATIO_H = 5;
   const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
@@ -848,7 +839,6 @@ function injectPWAStyles(){
     const tools  = document.getElementById('paintToolbar');
     const footer = document.querySelector('#screen-puzzle .puzzle-footer');
 
-    // 1) 可見區域
     const viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     const viewW = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
 
@@ -857,7 +847,6 @@ function injectPWAStyles(){
     const safeGapY = 24;
     const availH = Math.max(100, viewH - topH - bottomH - safeGapY);
 
-    // 2) 內部寬度（扣 padding）
     const cs = getComputedStyle(wrap);
     const padL = parseFloat(cs.paddingLeft)  || 0;
     const padR = parseFloat(cs.paddingRight) || 0;
@@ -866,56 +855,46 @@ function injectPWAStyles(){
     const safeGapX = 24;
     const availW = Math.max(120, Math.min(innerWrapW, viewW - safeGapX));
 
-    // 3) 依 8:5 比例
     const hByW   = availW * (RATIO_H / RATIO_W);
     const finalH = Math.min(hByW, availH);
     const finalW = finalH * (RATIO_W / RATIO_H);
 
-    // 4) 套尺寸（行內 CSS）
     board.style.width  = finalW + 'px';
     board.style.height = finalH + 'px';
   }
 
-  // 螢幕尺寸或可視區改變時重新計算
   window.addEventListener('resize', fitBoardMobile);
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', fitBoardMobile);
   }
 
-  // 對外保留一個可呼叫的函式（進入題目頁時呼叫）
   window.__fitBoardMobile = fitBoardMobile;
 })();
 
-// 點擊「小徽章」→ 開啟大徽章頁
-document.querySelectorAll('.badge-circle').forEach((el, idx) => {
-  el.addEventListener('click', () => {
-    const levelIndex = idx + 1;
-    showBadgePage(levelIndex);
-  });
-});
-
-// 顯示大徽章頁
+/* ---------- Badge Page helpers ---------- */
+// 顯示大徽章頁（由選關小徽章點擊，或通關後呼叫）
 function showBadgePage(levelIndex) {
-  // 隱藏其他畫面
+  const lv = STATE.levels[levelIndex - 1];
+  if (!lv) return;
+
+  // 切到大徽章頁
   $$('.screen').forEach(s => s.classList.remove('active'));
   $('#screen-badge').classList.add('active');
 
-  // 更新徽章圖片
-  const img = $('#badgeImage');
-  img.src = `public/badges/badge_L${levelIndex}.png`;
-  img.alt = `徽章 L${levelIndex}`;
-  
-  // 下一關邏輯
-  const btnNext = $('#btnNextLevel');
+  // 大徽章圖（對應你的檔案結構）
+  const img = $('#badgeBig');
+  img.src = `public/badges_big/${lv.badge}_big.png`;
+  img.alt = `徽章 ${lv.name}`;
+
+  // 「前往下一關」
+  const btnNext = $('#btnBadgeNext');
   btnNext.onclick = () => {
-    STATE.currentLevel = levelIndex + 1;
-    // 進入下一關的選關畫面或題目
-    showLevel(levelIndex + 1);
+    const nextLv = STATE.levels[levelIndex]; // 0-based：當前 + 1
+    if (nextLv) {
+      const [firstQ] = nextLv.range;
+      openPuzzle(firstQ);
+    } else {
+      go('levels');
+    }
   };
 }
-
-// 返回選關畫面
-$('#btnBadgeBack').addEventListener('click', () => {
-  $$('.screen').forEach(s => s.classList.remove('active'));
-  $('#screen-levels').classList.add('active'); // 假設選關頁 id 是這個
-});
