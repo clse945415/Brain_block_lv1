@@ -411,6 +411,7 @@ function checkSolved(){
   // ✅ 通關
   STATE.solved.add(STATE.currentQ);
   $('#statusImg').src='public/icons/status/btn_solved.svg';
+  showFireworks('#statusImg');
   updateLevelProgressForCurrentQ();
   saveProgressToLocal();
 
@@ -822,6 +823,71 @@ function injectPWAStyles(){
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', fitBoardMobile);
   }
+
+  // === 煙火特效 ===
+function showFireworks(targetSelector){
+  const target = document.querySelector(targetSelector);
+  if (!target) return;
+
+  const rect = target.getBoundingClientRect();
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.position = 'fixed';
+  canvas.style.left = 0;
+  canvas.style.top = 0;
+  canvas.style.pointerEvents = 'none';
+  canvas.style.zIndex = 9999;
+  document.body.appendChild(canvas);
+
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+
+  const particles = [];
+  const colors = ['#FFDD94','#FA897B','#86E3CE','#CCABD8','#D0E6A5'];
+
+  for (let i = 0; i < 80; i++) {
+    const angle = Math.random() * 2 * Math.PI;
+    const speed = Math.random() * 4 + 2;
+    particles.push({
+      x: cx,
+      y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r: Math.random() * 3 + 2,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      life: 60 + Math.random() * 20
+    });
+  }
+
+  function animate(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for (const p of particles) {
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.05; // 重力
+      p.life--;
+    }
+    for (let i=particles.length-1;i>=0;i--){
+      if(particles[i].life<=0) particles.splice(i,1);
+    }
+    if (particles.length>0){
+      requestAnimationFrame(animate);
+    } else {
+      canvas.remove();
+    }
+  }
+  animate();
+
+  // 自動移除 canvas 避免殘留
+  setTimeout(()=>canvas.remove(), 2000);
+}
 
   // 對外保留一個可呼叫的函式（進入題目頁時呼叫）
   window.__fitBoardMobile = fitBoardMobile;
