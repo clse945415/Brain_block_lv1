@@ -558,13 +558,8 @@ async function loadLeaderboard(){
   if (!url) { list.textContent = '排行榜未啟用'; return; }
 
   try {
-    // 只用 JSON：不要 callback
     const api = url + (url.includes('?') ? '&' : '?') + 'top=50&_ts=' + Date.now();
-    const res = await fetch(api, {
-      method: 'GET',
-      headers: { 'accept': 'application/json' }
-    });
-
+    const res = await fetch(api, { method: 'GET', headers: { 'accept': 'application/json' } });
     let data = null;
     try { data = await res.json(); } catch(e){}
 
@@ -578,39 +573,20 @@ async function loadLeaderboard(){
     list.innerHTML = '';
     const MAX_PER_LEVEL = 20;
     const TOTAL_MAX = (STATE?.levels?.length || 5) * MAX_PER_LEVEL;
-    const LV_COLORS = ['I','O','L','T','S']; // 取用 config.colors 中的顏色
 
     rows.forEach((r, i) => {
       const name  = r.player_name || `玩家${i+1}`;
-      const lvVals = [
-        Number(r.L1)||0,
-        Number(r.L2)||0,
-        Number(r.L3)||0,
-        Number(r.L4)||0,
-        Number(r.L5)||0
-      ];
-
-      // 總數：若後端有 total_cleared 就用，否則用 L1~L5 相加
-      const total = Math.min(
-        TOTAL_MAX,
-        Number(r.total_cleared ?? lvVals.reduce((a,b)=>a+b,0)) || 0
-      );
+      const lvVals = [Number(r.L1)||0, Number(r.L2)||0, Number(r.L3)||0, Number(r.L4)||0, Number(r.L5)||0];
+      const total = Math.min(TOTAL_MAX, Number(r.total_cleared ?? lvVals.reduce((a,b)=>a+b,0)) || 0);
       const totalText = `${total} / ${TOTAL_MAX}`;
 
-      // 產生每一條關卡進度條（顏色取自 config.colors）
-      const barsHtml = lvVals.map((v, idx) => {
-        const pct = Math.max(0, Math.min(100, Math.round((v / MAX_PER_LEVEL) * 100)));
-        const colorKey = LV_COLORS[idx] || null;
-        const barColor = (colorKey && STATE?.config?.colors?.[colorKey]) || '#eae6da';
-        return `<div class="lb-bar"><i style="width:${pct}%; background:${barColor}"></i></div>`;
-      }).join('');
-
+      // ✅ 簡化顯示樣式，只顯示名稱與總進度
       const row = document.createElement('div');
-      row.className = 'lb-row';
+      row.className = 'lb-row simple';
       row.innerHTML = `
-        <div class="lb-name">${i+1}. ${name}</div>
+        <div class="lb-rank">${i + 1}.</div>
+        <div class="lb-name">${name}</div>
         <div class="lb-total">${totalText}</div>
-        <div class="lb-bars">${barsHtml}</div>
       `;
       list.appendChild(row);
     });
@@ -620,6 +596,7 @@ async function loadLeaderboard(){
     list.textContent = '排行榜暫不提供或伺服器離線';
   }
 }
+
 
 /* ---------- Nav ---------- */
 function initNav(){
