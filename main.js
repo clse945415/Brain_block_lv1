@@ -6,17 +6,16 @@ let STATE = {
   player: '',
   currentQ: 1,
   selectedPiece: 'I',
-  grid: [],                 // 玩家作答 ('.' 或 'I','O','L','T','S')
-  solved: new Set(),        // 已完成題號
-  locked: [],               // true 表題目格（不可更動）
-  saves: {}                 // { q: ["........","........",...5行] }（完整盤面）
+  grid: [],
+  solved: new Set(),
+  locked: [],
+  saves: {}
 };
 
 const $  = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
 /* ---------- Utils (Global) ---------- */
-// 轉 CSS 像素 -> canvas 原生座標（解決 CSS 縮放後點擊偏移）
 function getCanvasPoint(e, cvs){
   const rect = cvs.getBoundingClientRect();
   let clientX, clientY;
@@ -34,11 +33,10 @@ function getCanvasPoint(e, cvs){
   return { x: xCss * scaleX, y: yCss * scaleY };
 }
 
-// 煙火特效（完成時在狀態按鈕位置綻放）
+/* ---------- 煙火特效 ---------- */
 function showFireworks(targetSelector){
   const target = document.querySelector(targetSelector);
   if (!target) return;
-
   const rect = target.getBoundingClientRect();
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -50,13 +48,10 @@ function showFireworks(targetSelector){
   canvas.style.pointerEvents = 'none';
   canvas.style.zIndex = 9999;
   document.body.appendChild(canvas);
-
   const cx = rect.left + rect.width / 2;
   const cy = rect.top + rect.height / 2;
-
   const particles = [];
   const colors = ['#FFDD94','#FA897B','#86E3CE','#CCABD8','#D0E6A5'];
-
   for (let i = 0; i < 80; i++) {
     const angle = Math.random() * 2 * Math.PI;
     const speed = Math.random() * 4 + 2;
@@ -69,7 +64,6 @@ function showFireworks(targetSelector){
       life: 60 + Math.random() * 20
     });
   }
-
   function animate(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
     for (const p of particles) {
@@ -125,40 +119,44 @@ async function loadData(){
   STATE.puzzles = puzzles.puzzles;
 }
 
-/* ---------- Layout: 鎖定每頁為 100vh，整站不捲動 ---------- */
-function lockNoScroll(){
-  document.documentElement.style.overflow = 'hidden';
-  document.body.style.overflow = 'hidden';
-  document.documentElement.style.height = '100vh';
-  document.body.style.height = '100vh';
-  // 每個 .screen 都固定 100vh 並禁捲
-  $$('.screen').forEach(s=>{
-    s.style.height = (window.visualViewport ? window.visualViewport.height : window.innerHeight) + 'px';
-    s.style.overflow = 'hidden';
-  });
+/* ---------- Layout: 僅棋盤頁防滾動 ---------- */
+function lockNoScroll(enable){
+  if (enable) {
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.height = '100vh';
+    document.body.style.height = '100vh';
+    const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight) + 'px';
+    const s = $('#screen-puzzle');
+    if (s) {
+      s.style.height = h;
+      s.style.overflow = 'hidden';
+    }
+  } else {
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+    document.documentElement.style.height = '';
+    document.body.style.height = '';
+    $$('.screen').forEach(s=>{
+      s.style.height = '';
+      s.style.overflow = '';
+    });
+  }
 }
 
 /* ---------- Page Switch ---------- */
 function go(screenId){
   const prevActive = document.querySelector('.screen.active');
-
-  // 切換 active 畫面
   $$('.screen').forEach(s=>s.classList.remove('active'));
   const scr = $('#screen-'+screenId);
   scr.classList.add('active');
-
-  // 離開題目頁：清掉 canvas 行內尺寸，避免殘留撐高
   if (prevActive && prevActive.id === 'screen-puzzle' && screenId !== 'puzzle') {
     const board = document.getElementById('board');
     if (board) { board.style.width = ''; board.style.height = ''; }
   }
-
-  // 重設頁面高度 & 不捲動
-  lockNoScroll();
+  lockNoScroll(screenId === 'puzzle');
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   scr.scrollTop = 0;
-
-  // 進入題目頁：下一幀再 fit（讓 DOM 高度先定型）
   if (screenId === 'puzzle') {
     requestAnimationFrame(()=>{
       if (typeof window.__fitBoard === 'function') window.__fitBoard();
@@ -168,7 +166,9 @@ function go(screenId){
 
 /* ---------- Cover ---------- */
 function initCover(){
-  $('#btnStart').addEventListener('click', ()=>{
+  const startBtn = $('#btnStart');
+  if (!startBtn) return;
+  startBtn.addEventListener('click', ()=>{
     const name = $('#playerName').value.trim();
     if(!name){ alert('請輸入玩家名稱'); return; }
     STATE.player = name;
@@ -188,20 +188,15 @@ function renderLevelList(){
   const ul = $('#levelList');
   if(!ul) return;
   ul.innerHTML = '';
-
   for(const lv of STATE.levels){
     const li = document.createElement('li');
     li.className = 'level-pill';
-
     const clearedCnt = countSolvedInRange(lv.range);
     const isUnlocked = clearedCnt === 20;
-
     const badgeSrc = isUnlocked
       ? `public/badges/${lv.badge}_unlocked.png`
       : `public/badges/${lv.badge}_locked.svg`;
-
     const progress = `${clearedCnt} / 20`;
-
     li.innerHTML = `
       <div class="level-left">
         <div class="level-title">${lv.name}</div>
@@ -212,24 +207,18 @@ function renderLevelList(){
       </div>
       <button class="enter-circle" aria-label="進入 ${lv.name}">
         <img src="public/icons/nav/arrow_next.svg" alt="">
-      </button>
-    `;
-
-    // 進入該關（箭頭）
+      </button>`;
     li.querySelector('.enter-circle').addEventListener('click', ()=>{
       const [a,b] = lv.range;
       let q = a;
       for(let i=a;i<=b;i++){ if(!STATE.solved.has(i)) { q=i; break; } }
       openPuzzle(q);
     });
-
-    // ✅ 小徽章 → 大徽章頁（只有該關達成 20/20 才可點）
     li.querySelector('.badge-circle').addEventListener('click', ()=>{
       if (!isUnlocked) return;
-      const levelIndex = STATE.levels.findIndex(x => x === lv) + 1; // 1-based
+      const levelIndex = STATE.levels.findIndex(x => x === lv) + 1;
       showBadgePage(levelIndex);
     });
-
     ul.appendChild(li);
   }
 }
