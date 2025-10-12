@@ -1,6 +1,11 @@
 /* ============ Base ============ */
 * { box-sizing: border-box; }
-html, body { overflow-x: hidden; height: 100%; }
+
+html, body {
+  height: 100dvh;            /* 動態視窗高度，修正手機瀏覽器工具列 */
+  overflow: hidden;          /* 全站不滾動 */
+}
+
 body{
   margin:0;
   font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans TC',sans-serif;
@@ -9,12 +14,33 @@ body{
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-.screen{ display:none; min-height:100vh; padding:12px; }
+
+/* 每個畫面都是滿版容器且不滾動 */
+.screen{
+  display:none;
+  height:100%;
+  padding:0;
+  overflow:hidden;
+}
 .screen.active{ display:block; }
+
+/* 需要置中的頁面以 flex 呈現（仍不滾動） */
+#screen-cover,
+#screen-levels,
+#screen-badge,
+#screen-leaderboard{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  height:100%;
+  overflow:hidden;
+}
 
 /* ============ Topbar ============ */
 .topbar{
   display:flex; align-items:center; gap:8px;
+  padding:8px 12px 0;
 }
 .topbar h1{
   flex:1; text-align:center; font-size:28px; font-weight:800;
@@ -26,13 +52,18 @@ body{
 /* Puzzle header（左返回｜中進度｜右排行榜） */
 .puzzle-topbar{
   position:relative; display:grid; grid-template-columns:48px 1fr 48px;
-  align-items:center; padding-top:8px;
+  align-items:center; padding:8px 12px 0;
 }
 .topbar-center{ display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; letter-spacing:.5px; }
 
 /* ============ Cover ============ */
-.cover-top img{ display:block; max-width:720px; width:100%; margin:0 auto; border-radius:12px; }
-.cover-form{ display:flex; flex-direction:column; gap:12px; max-width:420px; margin:18px auto 0; }
+.cover-top img{
+  display:block; max-width:720px; width:90vw; margin:0 auto; border-radius:12px;
+}
+.cover-form{
+  display:flex; flex-direction:column; gap:12px; max-width:420px; width:min(90vw,420px);
+  margin:18px auto 0;
+}
 .cover-form input{
   padding:12px 14px; border-radius:10px; border:2px solid #eae6da; font-size:18px; -webkit-tap-highlight-color:transparent;
 }
@@ -82,18 +113,16 @@ body{
 /* ✅ 外圈：保持圓形並裁切邊緣 */
 .badge-circle {
   background: rgba(17,74,77,.08);
-  overflow: hidden;                /* 重要：讓內圖完全貼齊外圈 */
+  overflow: hidden;                /* 讓內圖完全貼齊外圈 */
 }
 
-/* ✅ 內圖：填滿外圈，不再固定36px */
+/* ✅ 內圖：填滿外圈，不再固定 36px */
 .badge-circle img {
-  width:100%;                      /* 改成百分比 */
-  height:100%;
-  border-radius:50%;               /* 讓內外皆為圓形 */
-  object-fit:cover;                /* 讓圖片鋪滿不變形 */
-  display:block;                   /* 消除img預設空隙 */
-  opacity:.9;
-  pointer-events:none;
+  width:100%; height:100%;
+  border-radius:50%;
+  object-fit:cover;
+  display:block;
+  opacity:.9; pointer-events:none;
 }
 
 /* ✅ 箭頭保持原樣 */
@@ -103,11 +132,7 @@ body{
   cursor:pointer;
   -webkit-tap-highlight-color:transparent;
 }
-.enter-circle img {
-  width:26px; height:26px;
-  pointer-events:none;
-}
-
+.enter-circle img { width:26px; height:26px; pointer-events:none; }
 
 /* Level List - 小螢幕微調 */
 @media (max-width: 480px){
@@ -118,23 +143,40 @@ body{
   .level-title{ font-size:24px; }
   .level-progress{ font-size:16px; }
   .badge-circle, .enter-circle{ width:52px; height:52px; flex-basis:52px; }
-  /* 小螢幕徽章圖依然填滿整個圓 */
   .enter-circle img{ width:24px; height:24px; }
 }
 
 /* ============ Puzzle ============ */
-.puzzle-title{ text-align:center; font-size:32px; font-weight:900; margin:8px 0 6px; }
+#screen-puzzle{
+  display:flex;
+  flex-direction:column;
+  min-height:100dvh;
+  max-height:100dvh;
+  overflow:hidden; /* 禁止整頁滾動條 */
+}
+
+.puzzle-title{
+  text-align:center; font-size:32px; font-weight:900; margin:8px 0 6px;
+}
 
 .board-wrap{
-  display:flex; justify-content:center; margin:8px 0 10px;
-  overflow:visible; padding-inline:8px; max-width:100dvw; touch-action:none;
+  flex:1;                         /* 佔滿中間剩餘空間 */
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  overflow:hidden;                /* 棋盤不外溢 */
+  margin:0;
+  padding:0 8px;
+  max-height:100%;
 }
+
 #board{
   display:block; max-width:100%; background:#F7F7F7; border-radius:12px;
   box-shadow:0 0 0 10px #eae6da inset;
   touch-action:none; -webkit-tap-highlight-color:transparent;
   user-select:none; cursor:pointer;
 }
+
 .toolbar{
   display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin:6px 0 10px; user-select:none;
 }
@@ -147,11 +189,11 @@ body{
   box-shadow:0 0 0 4px rgba(255,255,255,.95) inset, 0 0 0 3px #114a4d;
   transform:translateY(-1px);
 }
-/* 可選：若不需要厚邊框就刪掉下一行 */
+/* 可選厚邊框 */
 .toolbar .tool{ border:10px solid #eae6da; }
 
 .puzzle-footer{
-  display:flex; align-items:center; justify-content:center; gap:18px; margin:12px 0 24px; -webkit-tap-highlight-color:transparent;
+  display:flex; align-items:center; justify-content:center; gap:18px; margin:8px 0 14px; -webkit-tap-highlight-color:transparent;
 }
 .pill{
   background:#fff; color:#114a4d; border:2px solid #eae6da; border-radius:999px; padding:8px 14px; font-weight:800; user-select:none;
@@ -159,57 +201,15 @@ body{
 .status-small{ width:42px; height:42px; display:block; pointer-events:none; }
 
 /* ============ Badges ============ */
-.badge-wrap{ display:flex; justify-content:center; margin:20px 0; }
-.badge-wrap img{
-  max-width:80vw; max-height:70vh; height:auto; object-fit:contain;
-}
-
-/* ============ Leaderboard（簡潔版：名稱 + 總完成） ============ */
-.leaderboard{
-  max-width:640px; margin:0 auto; background:#155f63;
-  border:2px solid #eae6da; border-radius:16px; padding:8px 10px;
-}
-#leaderboardList{ display:flex; flex-direction:column; gap:10px; padding:0 2px; }
-.lb-row{
-  display:grid; grid-template-columns:32px 1fr auto; /* 排名 | 名稱 | x/100 */
-  align-items:center; gap:10px; padding:10px 12px;
-  border-bottom:1px solid rgba(234,230,218,.6);
-}
-.lb-row:last-child{ border-bottom:none; }
-.lb-name{ font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.lb-total{
-  background:#fff; color:#114a4d; font-weight:800;
-  border:2px solid #eae6da; border-radius:999px;
-  padding:4px 10px; min-width:90px; text-align:center;
-}
-/* 隱藏舊版 5 關進度條區 */
-#screen-leaderboard .lb-bars{ display:none !important; }
-
-/* Leaderboard 頁面的 Topbar 尺寸 */
-#screen-leaderboard .topbar{
-  display:flex; align-items:center; justify-content:space-between; padding:8px 10px;
-}
-#screen-leaderboard .topbar .nav-btn img{ width:28px; height:28px; display:block; pointer-events:none; }
-
-/* Leaderboard - 小螢幕 */
-@media (max-width: 420px){
-  .leaderboard{ padding:6px 8px; }
-  .lb-row{ gap:8px; padding:8px 10px; }
-  .lb-total{ min-width:80px; padding:3px 8px; }
-}
-
-/* === 徽章頁 === */
 #screen-badge{
-  /* 不設定 display，讓 .screen 的 display:none 生效 */
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 100vh;
-  padding: 12px 0 28px;
-  text-align: center;
-}
-#screen-badge.active{
-  display: flex;             /* 只有啟用時才顯示 */
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  align-items:center;
+  height:100%;
+  padding:12px 0 20px;
+  text-align:center;
+  overflow:hidden;
 }
 
 .badge-topbar{
@@ -228,11 +228,8 @@ body{
   font-weight:800;
   margin:0;
 }
-.badge-topbar .nav-btn img{
-  width:28px; height:28px; display:block;
-}
+.badge-topbar .nav-btn img{ width:28px; height:28px; display:block; }
 
-/* 合併後的徽章容器（刪掉上方舊的 .badge-wrap 定義以免重複） */
 .badge-wrap{
   flex:1;
   display:flex;
@@ -242,7 +239,7 @@ body{
 }
 .badge-wrap img{
   max-width:80vw;
-  max-height:70vh;           /* 給比較寬鬆的高度避免小螢幕溢出 */
+  max-height:70vh;
   border-radius:12px;
   background:#fff;
   object-fit:contain;
@@ -264,25 +261,35 @@ body{
   -webkit-tap-highlight-color:transparent;
 }
 
-/* ==================== Puzzle Layout Fix ==================== */
-/* 修正題目頁 (桌機 + 手機) 都需要滾動才能看到棋盤的問題 */
-
-#screen-puzzle {
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;  /* 使用動態視窗高度，避免 100vh 錯誤 */
-  max-height: 100dvh;
-  overflow: hidden;    /* 禁止整頁滾動條 */
+/* ============ Leaderboard（簡潔版：名稱 + 總完成） ============ */
+.leaderboard{
+  max-width:640px; width:min(92vw,640px);
+  margin:0 auto; background:#155f63;
+  border:2px solid #eae6da; border-radius:16px; padding:8px 10px;
 }
+#leaderboardList{ display:flex; flex-direction:column; gap:10px; padding:0 2px; }
+.lb-row{
+  display:grid; grid-template-columns:32px 1fr auto; /* 排名 | 名稱 | x/100 */
+  align-items:center; gap:10px; padding:10px 12px;
+  border-bottom:1px solid rgba(234,230,218,.6);
+}
+.lb-row:last-child{ border-bottom:none; }
+.lb-name{ font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lb-total{
+  background:#fff; color:#114a4d; font-weight:800;
+  border:2px solid #eae6da; border-radius:999px;
+  padding:4px 10px; min-width:90px; text-align:center;
+}
+/* 隱藏舊版 5 關進度條區 */
+#screen-leaderboard .lb-bars{ display:none !important; }
 
-/* 棋盤區塊自動置中、不可撐開整頁 */
-.board-wrap {
-  flex: 1;                         /* 佔滿中間剩餘空間 */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;                /* 關鍵：棋盤不外溢 */
-  margin: 0;
-  padding: 0;
-  max-height: 100%;
+#screen-leaderboard .topbar{
+  display:flex; align-items:center; justify-content:space-between; padding:8px 10px;
+}
+#screen-leaderboard .topbar .nav-btn img{ width:28px; height:28px; display:block; }
+
+@media (max-width: 420px){
+  .leaderboard{ padding:6px 8px; }
+  .lb-row{ gap:8px; padding:8px 10px; }
+  .lb-total{ min-width:80px; padding:3px 8px; }
 }
