@@ -122,17 +122,20 @@ async function loadData(){
 /* ---------- Layout: 僅棋盤頁防滾動 ---------- */
 function lockNoScroll(enable){
   if (enable) {
+    // 鎖定整頁滾動（只在 puzzle 頁啟用）
     document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
     document.documentElement.style.height = '100vh';
     document.body.style.height = '100vh';
-    const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight) + 'px';
+
     const s = $('#screen-puzzle');
     if (s) {
-      s.style.height = h;
+      const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      s.style.height = vh + 'px';
       s.style.overflow = 'hidden';
     }
   } else {
+    // 解除鎖定，讓封面頁、排行榜等能自然滾動
     document.documentElement.style.overflow = '';
     document.body.style.overflow = '';
     document.documentElement.style.height = '';
@@ -150,19 +153,28 @@ function go(screenId){
   $$('.screen').forEach(s=>s.classList.remove('active'));
   const scr = $('#screen-'+screenId);
   scr.classList.add('active');
+
+  // 只有題目頁才禁止滾動
+  lockNoScroll(screenId === 'puzzle');
+
+  // 離開題目頁：清掉棋盤行內樣式
   if (prevActive && prevActive.id === 'screen-puzzle' && screenId !== 'puzzle') {
-    const board = document.getElementById('board');
+    const board = $('#board');
     if (board) { board.style.width = ''; board.style.height = ''; }
   }
-  lockNoScroll(screenId === 'puzzle');
+
+  // 強制回到頁頂
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   scr.scrollTop = 0;
+
+  // 題目頁要延後 fit
   if (screenId === 'puzzle') {
     requestAnimationFrame(()=>{
       if (typeof window.__fitBoard === 'function') window.__fitBoard();
     });
   }
 }
+
 
 /* ---------- Cover ---------- */
 function initCover(){
@@ -839,9 +851,6 @@ function injectPWAStyles(){
   initNav();
   renderLevelList();
   setupPWA();
-
-  // 鎖定不捲動 + 初始高度
-  lockNoScroll();
 
   // 可選：go('levels');
 })();
