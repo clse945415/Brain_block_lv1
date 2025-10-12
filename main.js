@@ -885,3 +885,37 @@ function injectPWAStyles(){
   // 對外保留一個可呼叫的函式（進入題目頁時呼叫）
   window.__fitBoardMobile = fitBoardMobile;
 })();
+
+// 點擊「小徽章」→ 開啟大徽章頁
+document.querySelectorAll('.badge-circle').forEach((el, idx) => {
+  el.addEventListener('click', () => {
+    const levelIndex = idx + 1;
+    showBadgePage(levelIndex);
+  });
+});
+
+// 顯示大徽章頁
+function showBadgePage(levelIndex) {
+  // 隱藏其他畫面
+  $$('.screen').forEach(s => s.classList.remove('active'));
+  $('#screen-badge').classList.add('active');
+
+  // 更新徽章圖片
+  const img = $('#badgeImage');
+  img.src = `public/badges/badge_L${levelIndex}.png`;
+  img.alt = `徽章 L${levelIndex}`;
+  
+  // 下一關邏輯
+  const btnNext = $('#btnNextLevel');
+  btnNext.onclick = () => {
+    STATE.currentLevel = levelIndex + 1;
+    // 進入下一關的選關畫面或題目
+    showLevel(levelIndex + 1);
+  };
+}
+
+// 返回選關畫面
+$('#btnBadgeBack').addEventListener('click', () => {
+  $$('.screen').forEach(s => s.classList.remove('active'));
+  $('#screen-levels').classList.add('active'); // 假設選關頁 id 是這個
+});
