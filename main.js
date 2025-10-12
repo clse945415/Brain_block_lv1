@@ -181,6 +181,11 @@ function openPuzzle(id){
   updateLevelProgressForCurrentQ();
   drawBoard();
   go('puzzle');
+
+  // ✅ 進入題目頁後做一次手機尺寸調整（行內 CSS 寬高）
+  if (typeof window.__fitBoardMobile === 'function') {
+    setTimeout(window.__fitBoardMobile, 0); // 等畫面切換完成再量測
+  }
 }
 
 function updateLevelProgressForCurrentQ(){
@@ -765,56 +770,59 @@ function injectPWAStyles(){
 // === 只縮放 5×8 棋盤（手機），其他排版不動 ===
 // 不改 canvas 的屬性寬高，只改「行內 CSS 尺寸」以保持比例 8:5。
 (function setupMobileBoardFit(){
-  const RATIO_W = 8, RATIO_H = 5; // 棋盤比例
-  const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
-
-function fitBoardMobile() {
-  const board = document.getElementById('board');
-  const wrap  = board?.closest('.board-wrap');
-  if (!board || !wrap) return;
-
-  const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
-  if (!isMobile()) { board.style.width = ''; board.style.height = ''; return; }
-
-  const topbar = document.querySelector('#screen-puzzle .topbar');
-  const title  = document.querySelector('#screen-puzzle .puzzle-title');
-  const tools  = document.getElementById('paintToolbar');
-  const footer = document.querySelector('#screen-puzzle .puzzle-footer');
-
-  // === 1) 取「真實可見高度與寬度」===
-  const viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  const viewW = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
-
-  // 扣掉上/下區塊與安全邊距
-  const topH    = (topbar?.offsetHeight || 0) + (title?.offsetHeight || 0);
-  const bottomH = (tools?.offsetHeight || 0) + (footer?.offsetHeight || 0);
-  const safeGapY = 24;               // 上下安全邊距
-  const availH = Math.max(100, viewH - topH - bottomH - safeGapY);
-
-  // === 2) 正確計算「容器能給棋盤的內部寬度」===
-  // wrap.clientWidth 含 padding，因此要扣 padding；同時也不能超過視窗可見寬
-  const cs = getComputedStyle(wrap);
-  const padL = parseFloat(cs.paddingLeft)  || 0;
-  const padR = parseFloat(cs.paddingRight) || 0;
-  const innerWrapW = Math.max(0, wrap.clientWidth - padL - padR);
-
-  const safeGapX = 24; // 左右安全邊距（含 safe-area 及你設計的留白）
-  const availW = Math.max(120, Math.min(innerWrapW, viewW - safeGapX));
-
-  // === 3) 依 8:5 比例決定最終尺寸（不超過可見高/寬）===
   const RATIO_W = 8, RATIO_H = 5;
-  const hByW    = availW * (RATIO_H / RATIO_W);   // 以寬推高
-  const finalH  = Math.min(hByW, availH);         // 不能超過可見高
-  const finalW  = finalH * (RATIO_W / RATIO_H);   // 回推寬，保持比例
+  const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
 
-  // === 4) 套用尺寸（只改行內 CSS）===
-  board.style.width  = finalW + 'px';
-  board.style.height = finalH + 'px';
-}
+  function fitBoardMobile() {
+    const board = document.getElementById('board');
+    const wrap  = board?.closest('.board-wrap');
+    if (!board || !wrap) return;
 
-  });
+    if (!isMobile()) { 
+      board.style.width = ''; 
+      board.style.height = ''; 
+      return; 
+    }
 
-  // 若你的程式有「切換到題目頁」的流程，呼叫一次：
-  // 例如在你顯示 #screen-puzzle 畫面時：
-  // showScreen('puzzle'); fitBoardMobile();
+    const topbar = document.querySelector('#screen-puzzle .topbar');
+    const title  = document.querySelector('#screen-puzzle .puzzle-title');
+    const tools  = document.getElementById('paintToolbar');
+    const footer = document.querySelector('#screen-puzzle .puzzle-footer');
+
+    // 1) 可見區域
+    const viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    const viewW = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
+
+    const topH    = (topbar?.offsetHeight || 0) + (title?.offsetHeight || 0);
+    const bottomH = (tools?.offsetHeight || 0) + (footer?.offsetHeight || 0);
+    const safeGapY = 24;
+    const availH = Math.max(100, viewH - topH - bottomH - safeGapY);
+
+    // 2) 內部寬度（扣 padding）
+    const cs = getComputedStyle(wrap);
+    const padL = parseFloat(cs.paddingLeft)  || 0;
+    const padR = parseFloat(cs.paddingRight) || 0;
+    const innerWrapW = Math.max(0, wrap.clientWidth - padL - padR);
+
+    const safeGapX = 24;
+    const availW = Math.max(120, Math.min(innerWrapW, viewW - safeGapX));
+
+    // 3) 依 8:5 比例
+    const hByW   = availW * (RATIO_H / RATIO_W);
+    const finalH = Math.min(hByW, availH);
+    const finalW = finalH * (RATIO_W / RATIO_H);
+
+    // 4) 套尺寸
+    board.style.width  = finalW + 'px';
+    board.style.height = finalH + 'px';
+  }
+
+  // 螢幕尺寸或可視區改變時重新計算
+  window.addEventListener('resize', fitBoardMobile);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', fitBoardMobile);
+  }
+
+  // 對外保留一個可呼叫的函式（進入題目頁時呼叫）
+  window.__fitBoardMobile = fitBoardMobile;
 })();
