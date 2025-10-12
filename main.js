@@ -152,26 +152,21 @@ function go(screenId){
   const prevActive = document.querySelector('.screen.active');
   $$('.screen').forEach(s=>s.classList.remove('active'));
   const scr = $('#screen-'+screenId);
-  scr.classList.add('active');
+  if (!scr) { console.warn('[go] screen not found:', screenId); return; }
 
-  // 只有題目頁才禁止滾動
+  scr.classList.add('active');
   lockNoScroll(screenId === 'puzzle');
 
-  // 離開題目頁：清掉棋盤行內樣式
   if (prevActive && prevActive.id === 'screen-puzzle' && screenId !== 'puzzle') {
     const board = $('#board');
     if (board) { board.style.width = ''; board.style.height = ''; }
   }
 
-  // 強制回到頁頂
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   scr.scrollTop = 0;
 
-  // 題目頁要延後 fit
   if (screenId === 'puzzle') {
-    requestAnimationFrame(()=>{
-      if (typeof window.__fitBoard === 'function') window.__fitBoard();
-    });
+    requestAnimationFrame(()=>{ if (typeof window.__fitBoard === 'function') window.__fitBoard(); });
   }
 }
 
@@ -180,8 +175,14 @@ function go(screenId){
 function initCover(){
   const startBtn = $('#btnStart');
   if (!startBtn) return;
-  startBtn.addEventListener('click', ()=>{
-    const name = $('#playerName').value.trim();
+
+  // 防止 form submit
+  startBtn.setAttribute('type', 'button');
+
+  startBtn.addEventListener('click', (e)=>{
+    e.preventDefault();
+    const nameInput = $('#playerName');
+    const name = (nameInput ? nameInput.value : '').trim();
     if(!name){ alert('請輸入玩家名稱'); return; }
     STATE.player = name;
     saveProgressToLocal();
@@ -189,6 +190,7 @@ function initCover(){
     go('levels');
   });
 }
+
 
 /* ---------- Level List ---------- */
 function countSolvedInRange([a,b]){
@@ -860,15 +862,15 @@ function injectPWAStyles(){
   const RATIO_W = 8, RATIO_H = 5;
 
   function fitBoard() {
-    lockNoScroll(); // 每次也順便更新頁高，避免 iOS 工具列變化
-
     const board = document.getElementById('board');
     const wrap  = board?.closest('.board-wrap');
     const screenPuzzle = document.getElementById('screen-puzzle');
 
-    if (!board || !wrap || !screenPuzzle || !screenPuzzle.classList.contains('active')) {
-      return;
-    }
+   // 只有題目頁才維持不捲動（並更新高度）
+   const isPuzzle = !!(screenPuzzle && screenPuzzle.classList.contains('active'));
+   if (isPuzzle) lockNoScroll(true);
+
+    if (!board || !wrap || !isPuzzle) return;
 
     // 先清掉行內，避免歷史尺寸干擾
     board.style.width = '';
