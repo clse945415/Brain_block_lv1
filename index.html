@@ -80,21 +80,24 @@
     </div>
   </section>
 
-  <!-- Badge Page -->
-  <section id="screen-badge" class="screen">
-    <header class="topbar">
-      <button class="nav-btn" data-go="levels" aria-label="返回">
-        <img src="public/icons/nav/arrow_back.svg" alt="" />
-      </button>
-      <h1>徽章</h1>
-    </header>
-    <div class="badge-wrap"><img id="badgeBig" src="" alt="badge" /></div>
-    <div class="badge-actions">
-      <button class="nav-btn" id="btnBadgeNext" aria-label="下一個">
-        <img src="public/icons/nav/arrow_next.svg" />
-      </button>
-    </div>
-  </section>
+<!-- Badge Page -->
+<section id="screen-badge" class="screen">
+  <header class="topbar badge-topbar">
+    <button class="nav-btn" data-go="levels" aria-label="返回">
+      <img src="public/icons/arrow-left.svg" alt="返回" />
+    </button>
+    <h1>徽章</h1>
+    <div style="width:48px;"></div> <!-- 保持標題置中 -->
+  </header>
+
+  <div class="badge-wrap">
+    <img id="badgeBig" src="" alt="badge" />
+  </div>
+
+  <div class="badge-actions">
+    <button class="pill" id="btnBadgeNext">前往下一關</button>
+  </div>
+</section>
 
   <!-- Leaderboard -->
   <section id="screen-leaderboard" class="screen">
