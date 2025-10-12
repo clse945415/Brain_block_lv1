@@ -1,4 +1,4 @@
-// Brain Block - playable build (題目上色+鎖定 / 玩家作答 / 驗證10塊 / 排行榜五關進度 / 本地保存)
+// Brain Block - playable build (精簡版：移除滾動鎖 / 修正畫面切換與按鈕)
 let STATE = {
   config: null,
   levels: null,
@@ -19,13 +19,8 @@ const $$ = sel => Array.from(document.querySelectorAll(sel));
 function getCanvasPoint(e, cvs){
   const rect = cvs.getBoundingClientRect();
   let clientX, clientY;
-  if (e.touches && e.touches[0]) {
-    clientX = e.touches[0].clientX;
-    clientY = e.touches[0].clientY;
-  } else {
-    clientX = e.clientX;
-    clientY = e.clientY;
-  }
+  if (e.touches && e.touches[0]) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
+  else { clientX = e.clientX; clientY = e.clientY; }
   const xCss = clientX - rect.left;
   const yCss = clientY - rect.top;
   const scaleX = cvs.width  / rect.width;
@@ -48,10 +43,12 @@ function showFireworks(targetSelector){
   canvas.style.pointerEvents = 'none';
   canvas.style.zIndex = 9999;
   document.body.appendChild(canvas);
+
   const cx = rect.left + rect.width / 2;
   const cy = rect.top + rect.height / 2;
   const particles = [];
   const colors = ['#FFDD94','#FA897B','#86E3CE','#CCABD8','#D0E6A5'];
+
   for (let i = 0; i < 80; i++) {
     const angle = Math.random() * 2 * Math.PI;
     const speed = Math.random() * 4 + 2;
@@ -67,28 +64,19 @@ function showFireworks(targetSelector){
   function animate(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
     for (const p of particles) {
-      ctx.beginPath();
-      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fillStyle = p.color;
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = p.color; ctx.fill();
       p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.life--;
     }
-    for (let i=particles.length-1;i>=0;i--) {
-      if (particles[i].life<=0) particles.splice(i,1);
-    }
-    if (particles.length>0) requestAnimationFrame(animate);
-    else canvas.remove();
+    for (let i=particles.length-1;i>=0;i--) if (particles[i].life<=0) particles.splice(i,1);
+    if (particles.length>0) requestAnimationFrame(animate); else canvas.remove();
   }
   animate();
   setTimeout(()=>canvas.remove(), 2000);
 }
 
 /* ---------- LocalStorage ---------- */
-const LS_KEYS = {
-  name: 'bb_player_name',
-  solved: 'bb_solved_set',
-  saves: 'bb_grids'
-};
+const LS_KEYS = { name: 'bb_player_name', solved: 'bb_solved_set', saves: 'bb_grids' };
 function saveProgressToLocal(){
   try{
     localStorage.setItem(LS_KEYS.name, STATE.player||'');
@@ -119,66 +107,39 @@ async function loadData(){
   STATE.puzzles = puzzles.puzzles;
 }
 
-/* ---------- Layout: 僅棋盤頁防滾動 ---------- */
-function lockNoScroll(enable){
-  if (enable) {
-    // 鎖定整頁滾動（只在 puzzle 頁啟用）
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.height = '100vh';
-    document.body.style.height = '100vh';
-
-    const s = $('#screen-puzzle');
-    if (s) {
-      const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-      s.style.height = vh + 'px';
-      s.style.overflow = 'hidden';
-    }
-  } else {
-    // 解除鎖定，讓封面頁、排行榜等能自然滾動
-    document.documentElement.style.overflow = '';
-    document.body.style.overflow = '';
-    document.documentElement.style.height = '';
-    document.body.style.height = '';
-    $$('.screen').forEach(s=>{
-      s.style.height = '';
-      s.style.overflow = '';
-    });
-  }
-}
-
-/* ---------- Page Switch ---------- */
+/* ---------- Page Switch（僅此：不做任何全域滾動鎖） ---------- */
 function go(screenId){
-  const prevActive = document.querySelector('.screen.active');
-  $$('.screen').forEach(s=>s.classList.remove('active'));
+  // 只保留一個 active
+  $$('.screen').forEach(s => s.classList.remove('active'));
   const scr = $('#screen-'+screenId);
   if (!scr) { console.warn('[go] screen not found:', screenId); return; }
-
   scr.classList.add('active');
-  lockNoScroll(screenId === 'puzzle');
 
-  if (prevActive && prevActive.id === 'screen-puzzle' && screenId !== 'puzzle') {
+  // 只有排行榜允許滾動；其他頁不滾動（由各自容器控制）
+  $$('.screen').forEach(s => s.style.overflow = 'hidden');
+  if (screenId === 'leaderboard') scr.style.overflowY = 'auto';
+
+  // 離開題目頁時，清棋盤行內尺寸避免撐高
+  if (screenId !== 'puzzle') {
     const board = $('#board');
-    if (board) { board.style.width = ''; board.style.height = ''; }
+    if (board) { board.style.width=''; board.style.height=''; }
   }
 
-  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  // 回到頁頂
+  window.scrollTo(0, 0);
   scr.scrollTop = 0;
 
+  // 題目頁下一幀再 fit
   if (screenId === 'puzzle') {
     requestAnimationFrame(()=>{ if (typeof window.__fitBoard === 'function') window.__fitBoard(); });
   }
 }
 
-
 /* ---------- Cover ---------- */
 function initCover(){
   const startBtn = $('#btnStart');
   if (!startBtn) return;
-
-  // 防止 form submit
-  startBtn.setAttribute('type', 'button');
-
+  startBtn.setAttribute('type', 'button'); // 避免 form submit
   startBtn.addEventListener('click', (e)=>{
     e.preventDefault();
     const nameInput = $('#playerName');
@@ -191,11 +152,8 @@ function initCover(){
   });
 }
 
-
 /* ---------- Level List ---------- */
-function countSolvedInRange([a,b]){
-  let c=0; for(let i=a;i<=b;i++){ if(STATE.solved.has(i)) c++; } return c;
-}
+function countSolvedInRange([a,b]){ let c=0; for(let i=a;i<=b;i++) if(STATE.solved.has(i)) c++; return c; }
 function isLevelCleared(lv){ return countSolvedInRange(lv.range)===20; }
 
 function renderLevelList(){
@@ -224,8 +182,7 @@ function renderLevelList(){
       </button>`;
     li.querySelector('.enter-circle').addEventListener('click', ()=>{
       const [a,b] = lv.range;
-      let q = a;
-      for(let i=a;i<=b;i++){ if(!STATE.solved.has(i)) { q=i; break; } }
+      let q = a; for(let i=a;i<=b;i++){ if(!STATE.solved.has(i)) { q=i; break; } }
       openPuzzle(q);
     });
     li.querySelector('.badge-circle').addEventListener('click', ()=>{
@@ -250,11 +207,7 @@ function signature(shape){ return normalize(shape).map(([r,c])=>`${r},${c}`).joi
 function uniq(arr){ return Array.from(new Set(arr)); }
 function allOrientations(base){
   let shapes=[],s=base;
-  for(let i=0;i<4;i++){
-    shapes.push(signature(s));
-    shapes.push(signature(flipH(s)));
-    s=rotate90(s);
-  }
+  for(let i=0;i<4;i++){ shapes.push(signature(s)); shapes.push(signature(flipH(s))); s=rotate90(s); }
   return uniq(shapes);
 }
 const BASE_SHAPES={
@@ -280,8 +233,7 @@ function openPuzzle(id){
       for(let c=0;c<8;c++){
         const ch=row[c]||'.';
         if('IOLTS'.includes(ch)){
-          STATE.grid[r][c]=ch;
-          STATE.locked[r][c]=true;
+          STATE.grid[r][c]=ch; STATE.locked[r][c]=true;
         }
       }
     }
@@ -290,12 +242,10 @@ function openPuzzle(id){
   // 套用本地保存（玩家塗色），不改動鎖定格
   const saved = STATE.saves[id];
   if(saved && Array.isArray(saved) && saved.length===5){
-    for(let r=0;r<5;r++){
-      for(let c=0;c<8;c++){
-        if(STATE.locked[r][c]) continue;
-        const ch = (saved[r][c]||'.');
-        if('IOLTS'.includes(ch)) STATE.grid[r][c]=ch;
-      }
+    for(let r=0;r<5;r++) for(let c=0;c<8;c++){
+      if(STATE.locked[r][c]) continue;
+      const ch = (saved[r][c]||'.');
+      if('IOLTS'.includes(ch)) STATE.grid[r][c]=ch;
     }
   }
 
@@ -309,9 +259,7 @@ function openPuzzle(id){
   go('puzzle');
 
   // 下一幀再 fit
-  requestAnimationFrame(()=>{
-    if (typeof window.__fitBoard === 'function') window.__fitBoard();
-  });
+  requestAnimationFrame(()=>{ if (typeof window.__fitBoard === 'function') window.__fitBoard(); });
 }
 
 function updateLevelProgressForCurrentQ(){
@@ -369,7 +317,6 @@ function bindToolbar(){
 
   function handlePaintEvent(e){
     if (e.cancelable) e.preventDefault();
-
     const meta = JSON.parse(boardEl.dataset.cell || '{}');
     if (!meta.cell) return;
 
@@ -398,10 +345,7 @@ function bindToolbar(){
 
   // 右上🏆：先切頁後讀取
   const lbBtn = $('#btnToLeaderboard');
-  if (lbBtn) lbBtn.addEventListener('click', () => {
-    go('leaderboard');
-    loadLeaderboard();
-  });
+  if (lbBtn) lbBtn.addEventListener('click', () => { go('leaderboard'); loadLeaderboard(); });
 }
 function navigateQ(delta){
   let q=STATE.currentQ+delta;
@@ -413,9 +357,9 @@ function navigateQ(delta){
 /* ---------- 驗證：整盤全滿 + 共10塊 + I/O/L/T/S各2 ---------- */
 function checkSolved(){
   const H=5, W=8;
-
   const target = STATE.puzzles[STATE.currentQ-1];
   const tgtRows = target ? target.rows : null;
+
   for(let r=0;r<H;r++){
     for(let c=0;c<W;c++){
       const ch = STATE.grid[r][c];
@@ -428,7 +372,6 @@ function checkSolved(){
     }
   }
 
-  // 形狀庫
   const rot = s => s.map(([r,c])=>[c,-r]);
   const flip = s => s.map(([r,c])=>[r,-c]);
   const normalize = s => {
@@ -455,7 +398,6 @@ function checkSolved(){
   };
   const ORIENTS = Object.fromEntries(['I','O','L','T','S'].map(t=>[t, uniqShapes(BASE[t])]));
 
-  // 產生候選 4 格
   const idx = (r,c)=> r*W + c;
   const CAND = [];
   for (const t of ['I','O','L','T','S']){
@@ -463,7 +405,7 @@ function checkSolved(){
       for(let r0=0;r0<H;r0++){
         for(let c0=0;c0<W;c0++){
           let ok=true, cells=[];
-        for(const [dr,dc] of shape){
+          for(const [dr,dc] of shape){
             const r=r0+dr, c=c0+dc;
             if(r<0||r>=H||c<0||c>=W){ ok=false; break; }
             if(STATE.grid[r][c]!==t){ ok=false; break; }
@@ -484,11 +426,9 @@ function checkSolved(){
   }
   if (CAND.length === 0) return;
 
-  // 建索引
   const cellToCand = Array.from({length:H*W}, ()=>[]);
   CAND.forEach((cand, i)=> cand.cells.forEach(ci=> cellToCand[ci].push(i)));
 
-  // 精確鋪滿
   const usedCell = Array(H*W).fill(false);
   const usedCand = Array(CAND.length).fill(false);
   const countByType = {I:0,O:0,L:0,T:0,S:0};
@@ -562,10 +502,7 @@ function checkSolved(){
 async function pushProgress(){
   try{
     const url = STATE.config && STATE.config.leaderboardUrl;
-    if(!url || !STATE.player){ 
-      console.warn('leaderboard disabled or no player'); 
-      return; 
-    }
+    if(!url || !STATE.player){ console.warn('leaderboard disabled or no player'); return; }
 
     const totalCleared = STATE.solved.size;
     const lv = STATE.levels.find(l => STATE.currentQ>=l.range[0] && STATE.currentQ<=l.range[1]);
@@ -574,29 +511,20 @@ async function pushProgress(){
     const payload = {
       secret: STATE.config.sharedSecret || '',
       player_name: STATE.player,
-      total_cleared: totalCleared,   // 0~100
-      level_cleared: levelIndex,     // 1..5（完成該關時你後端會打勾）
+      total_cleared: totalCleared,
+      level_cleared: levelIndex,
       puzzle_id: STATE.currentQ
     };
 
-    // 優先：sendBeacon
     const data = new Blob([JSON.stringify(payload)], { type: 'text/plain;charset=UTF-8' });
-    if (navigator.sendBeacon) {
-      const ok = navigator.sendBeacon(url, data);
-      if (ok) return;
-    }
+    if (navigator.sendBeacon && navigator.sendBeacon(url, data)) return;
 
-    // 備援：no-cors + text/plain
     fetch(url, {
-      method: 'POST',
-      mode: 'no-cors',
+      method: 'POST', mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      body: JSON.stringify(payload),
-      keepalive: true,
+      body: JSON.stringify(payload), keepalive: true
     }).catch(()=>{});
-  }catch(e){
-    console.warn('pushProgress exception', e);
-  }
+  }catch(e){ console.warn('pushProgress exception', e); }
 }
 
 async function loadLeaderboard(){
@@ -610,8 +538,7 @@ async function loadLeaderboard(){
   try {
     const api = url + (url.includes('?') ? '&' : '?') + 'top=50&_ts=' + Date.now();
     const res = await fetch(api, { method: 'GET', headers: { 'accept': 'application/json' } });
-    let data = null;
-    try { data = await res.json(); } catch(e){}
+    let data = null; try { data = await res.json(); } catch(e){}
 
     if (!res.ok || !data || data.ok === false || !Array.isArray(data.data)) {
       console.warn('[leaderboard] bad response', res.status, data);
@@ -639,7 +566,6 @@ async function loadLeaderboard(){
       `;
       list.appendChild(row);
     });
-
   } catch (e) {
     console.warn('loadLeaderboard failed', e);
     list.textContent = '排行榜暫不提供或伺服器離線';
@@ -661,15 +587,10 @@ function initNav(){
   // 排行榜頁返回
   const lbBack = document.querySelector('#screen-leaderboard .topbar .nav-btn');
   if (lbBack) lbBack.addEventListener('click', () => go('levels'));
-
-  // ▼ 不在這裡綁 #btnBadgeNext，改由 showBadgePage() 動態指定下一關
 }
 
 /* ---------- PWA Install (Add to Home Screen) ---------- */
-const PWA_LS = {
-  iosTipDismissed: 'bb_ios_tip_dismissed',
-  installDismissed: 'bb_install_dismissed'
-};
+const PWA_LS = { iosTipDismissed: 'bb_ios_tip_dismissed', installDismissed: 'bb_install_dismissed' };
 
 function setupPWA(){
   registerServiceWorker();
@@ -680,9 +601,7 @@ function setupPWA(){
 
 function registerServiceWorker(){
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(err=>{
-      console.warn('[PWA] SW register failed:', err);
-    });
+    navigator.serviceWorker.register('./sw.js').catch(err=>{ console.warn('[PWA] SW register failed:', err); });
   }
 }
 
@@ -699,9 +618,7 @@ function setupInstallPrompt(){
   window.addEventListener('beforeinstallprompt', (e)=>{
     e.preventDefault();
     _deferredPrompt = e;
-    if (!localStorage.getItem(PWA_LS.installDismissed)) {
-      renderInstallFAB();
-    }
+    if (!localStorage.getItem(PWA_LS.installDismissed)) renderInstallFAB();
   });
 
   window.addEventListener('appinstalled', ()=>{
@@ -720,20 +637,13 @@ function renderInstallFAB(){
   btn.innerHTML = '安裝&nbsp;App';
 
   btn.addEventListener('click', async ()=>{
-    if (!_deferredPrompt) {
-      btn.classList.add('bb-hide');
-      return;
-    }
+    if (!_deferredPrompt) { btn.classList.add('bb-hide'); return; }
     _deferredPrompt.prompt();
     try{
       const choice = await _deferredPrompt.userChoice;
       _deferredPrompt = null;
-      if (choice && choice.outcome === 'dismissed') {
-        // 保留按鈕讓他之後再安裝
-      }
-    }catch(e){
-      console.warn('[PWA] userChoice error:', e);
-    }
+      if (choice && choice.outcome === 'dismissed') { /* 保留按鈕 */ }
+    }catch(e){ console.warn('[PWA] userChoice error:', e); }
   });
 
   const close = document.createElement('span');
@@ -755,7 +665,6 @@ function showIOSTipIfNeeded(){
   const isIOS = /iPad|iPhone|iPod/i.test(ua);
   const isSafari = isIOS && !!window.webkit && !!window.webkit.messageHandlers === false;
   const alreadyDismissed = localStorage.getItem(PWA_LS.iosTipDismissed);
-
   if (isStandalone() || !isIOS) return;
   if (alreadyDismissed) return;
 
@@ -801,38 +710,22 @@ function injectPWAStyles(){
   if (document.querySelector('#bb-pwa-style')) return;
   const css = `
 #bb-install-fab{
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 9999;
-  padding: 12px 16px 12px 16px;
-  border: none;
-  border-radius: 999px;
-  font-size: 15px;
-  line-height: 1;
-  box-shadow: 0 6px 18px rgba(0,0,0,.18);
-  background: #1C6F73; color: #fff;
-  display: inline-flex; align-items: center; gap: 8px;
-  transition: transform .18s ease, opacity .18s ease;
+  position: fixed; right: 16px; bottom: 16px; z-index: 9999;
+  padding: 12px 16px; border: none; border-radius: 999px; font-size: 15px; line-height: 1;
+  box-shadow: 0 6px 18px rgba(0,0,0,.18); background: #1C6F73; color: #fff;
+  display: inline-flex; align-items: center; gap: 8px; transition: transform .18s ease, opacity .18s ease;
 }
 #bb-install-fab.bb-hide{ opacity: 0; transform: translateY(8px); }
-#bb-install-fab .bb-fab-close{
-  margin-left: 8px; font-size: 18px; opacity: .9; line-height: 1;
-  cursor: pointer;
-}
+#bb-install-fab .bb-fab-close{ margin-left: 8px; font-size: 18px; opacity: .9; line-height: 1; cursor: pointer; }
 #bb-ios-tip{
   position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 9998;
   background: rgba(255,255,255,.96); backdrop-filter: blur(6px);
-  border: 1px solid rgba(0,0,0,.06);
-  border-radius: 12px; padding: 12px;
+  border: 1px solid rgba(0,0,0,.06); border-radius: 12px; padding: 12px;
   box-shadow: 0 6px 18px rgba(0,0,0,.12);
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   font-size: 14px; color: #333;
 }
-#bb-ios-tip .bb-ios-tip-btn{
-  border: none; background: #1C6F73; color: #fff;
-  padding: 8px 12px; border-radius: 999px; font-size: 14px;
-}
+#bb-ios-tip .bb-ios-tip-btn{ border: none; background: #1C6F73; color: #fff; padding: 8px 12px; border-radius: 999px; font-size: 14px; }
 @media (min-width: 768px){
   #bb-install-fab{ bottom: 24px; right: 24px; }
   #bb-ios-tip{ left: calc(50% - 280px); right: auto; width: 560px; }
@@ -853,11 +746,11 @@ function injectPWAStyles(){
   initNav();
   renderLevelList();
   setupPWA();
-
-  // 可選：go('levels');
+  // 初始畫面：cover 應該已在 HTML 標記 active；若不是可手動：
+  // go('cover');
 })();
 
-/* === 依視窗縮放 8×5 棋盤（桌機/手機皆適用），整頁不捲動 === */
+/* === 依視窗縮放 8×5 棋盤（桌機/手機皆適用） === */
 (function setupBoardFit(){
   const RATIO_W = 8, RATIO_H = 5;
 
@@ -865,18 +758,13 @@ function injectPWAStyles(){
     const board = document.getElementById('board');
     const wrap  = board?.closest('.board-wrap');
     const screenPuzzle = document.getElementById('screen-puzzle');
-
-   // 只有題目頁才維持不捲動（並更新高度）
-   const isPuzzle = !!(screenPuzzle && screenPuzzle.classList.contains('active'));
-   if (isPuzzle) lockNoScroll(true);
-
+    const isPuzzle = !!(screenPuzzle && screenPuzzle.classList.contains('active'));
     if (!board || !wrap || !isPuzzle) return;
 
     // 先清掉行內，避免歷史尺寸干擾
-    board.style.width = '';
-    board.style.height = '';
+    board.style.width = ''; board.style.height = '';
 
-    // 視窗可用尺寸（考慮 iOS 工具列）
+    // 視窗可用尺寸
     const viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     const viewW = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
 
@@ -890,7 +778,6 @@ function injectPWAStyles(){
     const bottomH = (tools?.offsetHeight || 0) + (footer?.offsetHeight || 0);
 
     let availH = Math.max(120, viewH - topH - bottomH - 24); // 上下安全距
-    // 容器可用寬度
     const cs = getComputedStyle(wrap);
     const padL = parseFloat(cs.paddingLeft)  || 0;
     const padR = parseFloat(cs.paddingRight) || 0;
@@ -907,38 +794,26 @@ function injectPWAStyles(){
     board.style.height = finalH + 'px';
   }
 
-  // 監聽與外部呼叫
   window.addEventListener('resize', fitBoard);
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', fitBoard);
-  }
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', fitBoard);
   window.__fitBoard = fitBoard;
 })();
 
 /* ---------- Badge Page helpers ---------- */
-// 顯示大徽章頁（由選關小徽章點擊，或通關後呼叫）
 function showBadgePage(levelIndex) {
   const lv = STATE.levels[levelIndex - 1];
   if (!lv) return;
-
-  // 切到大徽章頁
   $$('.screen').forEach(s => s.classList.remove('active'));
   $('#screen-badge').classList.add('active');
 
-  // 大徽章圖（對應你的檔案結構）
   const img = $('#badgeBig');
   img.src = `public/badges_big/${lv.badge}_big.png`;
   img.alt = `徽章 ${lv.name}`;
 
-  // 「前往下一關」
   const btnNext = $('#btnBadgeNext');
   btnNext.onclick = () => {
-    const nextLv = STATE.levels[levelIndex]; // 0-based：當前 + 1
-    if (nextLv) {
-      const [firstQ] = nextLv.range;
-      openPuzzle(firstQ);
-    } else {
-      go('levels');
-    }
+    const nextLv = STATE.levels[levelIndex];
+    if (nextLv) { const [firstQ] = nextLv.range; openPuzzle(firstQ); }
+    else { go('levels'); }
   };
 }
