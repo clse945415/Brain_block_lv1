@@ -125,37 +125,43 @@ async function loadData(){
   STATE.puzzles = puzzles.puzzles;
 }
 
+/* ---------- Layout: 鎖定每頁為 100vh，整站不捲動 ---------- */
+function lockNoScroll(){
+  document.documentElement.style.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
+  document.documentElement.style.height = '100vh';
+  document.body.style.height = '100vh';
+  // 每個 .screen 都固定 100vh 並禁捲
+  $$('.screen').forEach(s=>{
+    s.style.height = (window.visualViewport ? window.visualViewport.height : window.innerHeight) + 'px';
+    s.style.overflow = 'hidden';
+  });
+}
+
 /* ---------- Page Switch ---------- */
 function go(screenId){
   const prevActive = document.querySelector('.screen.active');
 
-  // 1) 任何切頁先把整頁 scroll 歸零（多重 fallback）
-  try {
-    window.scrollTo(0, 0);
-    window.scrollTo({ top: 0, left: 0 });
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  } catch(_) {}
-  document.documentElement.scrollTop = 0;
-  document.body.scrollTop = 0;
-
-  // 2) 切換 active 畫面
+  // 切換 active 畫面
   $$('.screen').forEach(s=>s.classList.remove('active'));
   const scr = $('#screen-'+screenId);
   scr.classList.add('active');
-  scr.scrollTop = 0;
 
-  // 3) 離開題目頁：清掉 canvas 行內尺寸，避免殘留撐高
+  // 離開題目頁：清掉 canvas 行內尺寸，避免殘留撐高
   if (prevActive && prevActive.id === 'screen-puzzle' && screenId !== 'puzzle') {
     const board = document.getElementById('board');
     if (board) { board.style.width = ''; board.style.height = ''; }
   }
 
-  // 4) 進入題目頁：下一幀再 fit（讓 DOM 高度先定型）
+  // 重設頁面高度 & 不捲動
+  lockNoScroll();
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  scr.scrollTop = 0;
+
+  // 進入題目頁：下一幀再 fit（讓 DOM 高度先定型）
   if (screenId === 'puzzle') {
     requestAnimationFrame(()=>{
-      if (typeof window.__fitBoardMobile === 'function') {
-        window.__fitBoardMobile();
-      }
+      if (typeof window.__fitBoard === 'function') window.__fitBoard();
     });
   }
 }
@@ -299,20 +305,9 @@ function openPuzzle(id){
   drawBoard();
   go('puzzle');
 
-  // 回到頁面頂端（多重 fallback，跨瀏覽器保險）
-  try {
-    window.scrollTo(0, 0);
-    window.scrollTo({ top: 0, left: 0 });
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  } catch(_) {}
-  document.documentElement.scrollTop = 0;
-  document.body.scrollTop = 0;
-
-  // 下一幀再 fit，確保 DOM 尺寸量到正確
+  // 下一幀再 fit
   requestAnimationFrame(()=>{
-    if (typeof window.__fitBoardMobile === 'function') {
-      window.__fitBoardMobile();
-    }
+    if (typeof window.__fitBoard === 'function') window.__fitBoard();
   });
 }
 
@@ -465,7 +460,7 @@ function checkSolved(){
       for(let r0=0;r0<H;r0++){
         for(let c0=0;c0<W;c0++){
           let ok=true, cells=[];
-          for(const [dr,dc] of shape){
+        for(const [dr,dc] of shape){
             const r=r0+dr, c=c0+dc;
             if(r<0||r>=H||c<0||c>=W){ ok=false; break; }
             if(STATE.grid[r][c]!==t){ ok=false; break; }
@@ -855,46 +850,37 @@ function injectPWAStyles(){
   initNav();
   renderLevelList();
   setupPWA();
+
+  // 鎖定不捲動 + 初始高度
+  lockNoScroll();
+
   // 可選：go('levels');
 })();
 
-/* === 只縮放 5×8 棋盤（手機），其他排版不動：新版防溢出版 === */
-(function setupMobileBoardFit(){
+/* === 依視窗縮放 8×5 棋盤（桌機/手機皆適用），整頁不捲動 === */
+(function setupBoardFit(){
   const RATIO_W = 8, RATIO_H = 5;
-  const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
 
-  function fitBoardMobile() {
+  function fitBoard() {
+    lockNoScroll(); // 每次也順便更新頁高，避免 iOS 工具列變化
+
     const board = document.getElementById('board');
     const wrap  = board?.closest('.board-wrap');
     const screenPuzzle = document.getElementById('screen-puzzle');
 
-    // 只有題目頁顯示時才動手
     if (!board || !wrap || !screenPuzzle || !screenPuzzle.classList.contains('active')) {
       return;
     }
 
-    // 桌機：還原原始尺寸
-    if (!isMobile()) {
-      board.style.width = '';
-      board.style.height = '';
-      return;
-    }
-
-    // 先重置，避免之前頁面的尺寸殘留
+    // 先清掉行內，避免歷史尺寸干擾
     board.style.width = '';
     board.style.height = '';
 
-    // 1) 可用視窗尺寸（兼容 iOS 工具列）
+    // 視窗可用尺寸（考慮 iOS 工具列）
     const viewH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     const viewW = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
 
-    let availH = viewH;
-    const bodyRect = document.body.getBoundingClientRect();
-    if (bodyRect && bodyRect.height) {
-      availH = Math.min(availH, bodyRect.height);
-    }
-
-    // 2) 扣掉上方/下方 UI
+    // 扣除題目頁上/下方 UI 高度
     const topbar = document.querySelector('#screen-puzzle .topbar');
     const title  = document.querySelector('#screen-puzzle .puzzle-title');
     const tools  = document.getElementById('paintToolbar');
@@ -903,34 +889,30 @@ function injectPWAStyles(){
     const topH    = (topbar?.offsetHeight || 0) + (title?.offsetHeight || 0);
     const bottomH = (tools?.offsetHeight || 0) + (footer?.offsetHeight || 0);
 
-    const safeGapY = 32;
-    availH = Math.max(120, availH - topH - bottomH - safeGapY);
-
-    // 3) 容器可用寬度
+    let availH = Math.max(120, viewH - topH - bottomH - 24); // 上下安全距
+    // 容器可用寬度
     const cs = getComputedStyle(wrap);
     const padL = parseFloat(cs.paddingLeft)  || 0;
     const padR = parseFloat(cs.paddingRight) || 0;
     const innerWrapW = Math.max(0, wrap.clientWidth - padL - padR);
+    const availW = Math.max(160, Math.min(innerWrapW, viewW - 24));
 
-    const safeGapX = 24;
-    const availW = Math.max(160, Math.min(innerWrapW, viewW - safeGapX));
-
-    // 4) 依 8:5 比例計算
+    // 依 8:5 比例計算
     const hByW   = availW * (RATIO_H / RATIO_W);
     const finalH = Math.min(hByW, availH);
     const finalW = Math.min(availW, finalH * (RATIO_W / RATIO_H));
 
-    // 5) 套用 CSS 尺寸（不改 canvas 內部像素）
+    // 套用 CSS 尺寸（不改 canvas 內部像素）
     board.style.width  = finalW + 'px';
     board.style.height = finalH + 'px';
   }
 
   // 監聽與外部呼叫
-  window.addEventListener('resize', fitBoardMobile);
+  window.addEventListener('resize', fitBoard);
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', fitBoardMobile);
+    window.visualViewport.addEventListener('resize', fitBoard);
   }
-  window.__fitBoardMobile = fitBoardMobile;
+  window.__fitBoard = fitBoard;
 })();
 
 /* ---------- Badge Page helpers ---------- */
