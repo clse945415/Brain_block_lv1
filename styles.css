@@ -170,3 +170,71 @@ body{
   .lb-row{ gap:8px; padding:8px 10px; }
   .lb-total{ min-width:80px; padding:3px 8px; }
 }
+
+/* === 徽章頁 === */
+#screen-badge{
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  align-items:center;
+  min-height:100vh;
+  padding:12px 0 28px;
+  text-align:center;
+}
+
+.badge-topbar{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 12px;
+  position:relative;
+  z-index:2;
+}
+
+.badge-topbar h1{
+  flex:1;
+  text-align:center;
+  font-size:24px;
+  font-weight:800;
+  margin:0;
+}
+
+.badge-topbar .nav-btn img{
+  width:28px;
+  height:28px;
+  display:block;
+}
+
+.badge-wrap{
+  flex:1;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin:16px 0;
+}
+
+.badge-wrap img{
+  max-width:80vw;
+  max-height:60vh;
+  border-radius:12px;
+  background:#fff;
+  object-fit:contain;
+}
+
+.badge-actions{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+#btnBadgeNext.pill{
+  background:#eae6da;
+  color:#114a4d;
+  border:none;
+  border-radius:999px;
+  padding:12px 26px;
+  font-size:18px;
+  font-weight:800;
+  -webkit-tap-highlight-color:transparent;
+}
