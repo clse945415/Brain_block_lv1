@@ -360,7 +360,10 @@ body{
   overflow: visible;
   text-overflow: clip;
   min-width: 0;
-  font-size: inherit;     /* 保持原大小 */
+  font-size: 28px; /* 桌機維持28px */
+  @media (max-width: 420px){
+  .level-title{ font-size:24px; }
+}
 }
 
 /* 通關數字：固定右側、可自動縮放寬度 */
