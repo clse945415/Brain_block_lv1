@@ -18,7 +18,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <!-- （可選）顯示於 iOS 主畫面名稱，預設會用 <title> -->
   <!-- <meta name="apple-mobile-web-app-title" content="Brain Block" /> -->
-
+  <style>
+    /* 強制只有 active 畫面顯示，避免舊版 CSS 造成多頁同時出現 */
+    .screen { display: none !important; }
+    .screen.active { display: flex !important; }
+  </style>
   <link rel="stylesheet" href="styles.css" />
 </head>
 
