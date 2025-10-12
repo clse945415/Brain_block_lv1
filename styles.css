@@ -264,3 +264,25 @@ body{
   -webkit-tap-highlight-color:transparent;
 }
 
+/* ==================== Puzzle Layout Fix ==================== */
+/* 修正題目頁 (桌機 + 手機) 都需要滾動才能看到棋盤的問題 */
+
+#screen-puzzle {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;  /* 使用動態視窗高度，避免 100vh 錯誤 */
+  max-height: 100dvh;
+  overflow: hidden;    /* 禁止整頁滾動條 */
+}
+
+/* 棋盤區塊自動置中、不可撐開整頁 */
+.board-wrap {
+  flex: 1;                         /* 佔滿中間剩餘空間 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;                /* 關鍵：棋盤不外溢 */
+  margin: 0;
+  padding: 0;
+  max-height: 100%;
+}
