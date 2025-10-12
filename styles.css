@@ -281,3 +281,55 @@ body{
   width:0%;
   background:#eae6da;        /* 會用 JS 覆蓋顏色與寬度 */
 }
+
+/* === Leaderboard：簡潔版（只顯示名稱 + 總完成） === */
+
+/* 1) 隱藏 5 關進度條（保險起見加上作用域） */
+#screen-leaderboard .lb-bars { display: none !important; }
+
+/* 2) 外框縮減一點 padding，保持居中 */
+.leaderboard{
+  max-width: 640px;
+  margin: 0 auto;
+  background: #155f63;
+  border: 2px solid #eae6da;
+  border-radius: 16px;
+  padding: 8px 10px; /* 比原本再緊一點，手機不會擠出畫面 */
+}
+
+/* 3) 單列樣式：只排名次、名稱、總進度 */
+.lb-row{
+  display: grid;
+  grid-template-columns: 32px 1fr auto; /* 排名 | 名稱 | x/100 */
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(234,230,218,.6);
+}
+.lb-row:last-child{ border-bottom: none; }
+
+.lb-name{
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* x/100 膠囊 */
+.lb-total{
+  background:#fff;
+  color:#114a4d;
+  font-weight: 800;
+  border: 2px solid #eae6da;
+  border-radius: 999px;
+  padding: 4px 10px;
+  min-width: 90px;       /* 例如 25 / 100 */
+  text-align: center;
+}
+
+/* 4) 小螢幕優化：縮小左右 padding，避免擠壓 */
+@media (max-width: 420px){
+  .leaderboard{ padding: 6px 8px; }
+  .lb-row{ gap: 8px; padding: 8px 10px; }
+  .lb-total{ min-width: 80px; padding: 3px 8px; }
+}
