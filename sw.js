@@ -1,6 +1,6 @@
 // === Brain Block SW (auto-upgrade) ===
 // ① 每次上線把版本改一個新字串（日期 or 0.0.1 皆可）
-const CACHE_VERSION = 'v2025-10-13-9';
+const CACHE_VERSION = 'v2025-10-13-10';
 const CACHE_NAME = `brainblock-${CACHE_VERSION}`;
 
 const ASSETS = [
