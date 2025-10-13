@@ -161,6 +161,7 @@ body {
 .board-wrap {
   flex: 1 1 auto;
   min-height: 120px /* 讓中段能在 flex 內收縮，避免高度被卡住 */
+  width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
