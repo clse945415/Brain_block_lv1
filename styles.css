@@ -4,6 +4,7 @@
 html, body {
   min-height: 100dvh;
   overflow: auto; /* 不鎖全站，由各 screen 控制 */
+  scroll-behavior: auto;
 }
 
 body {
@@ -169,6 +170,14 @@ body {
   margin: 8px 0 6px;
 }
 
+/* 讓題目頁頂欄永遠黏在最上面，不會跑到中間 */
+#screen-puzzle .topbar {
+  position: sticky;           /* 新增 */
+  top: 0;                     /* 新增 */
+  z-index: 5;                 /* 新增：確保在棋盤之上 */
+  background: #1C6F73;        /* 新增：黏住時不透出底色 */
+}
+
 .board-wrap {
   flex: 1 1 auto;
   min-height: 120px; /* ⚠️ 補上分號 */
@@ -176,7 +185,6 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: hidden;
   margin: 0;
   padding: 0 8px;
 }
@@ -184,6 +192,7 @@ body {
 #board {
   display: block;
   max-width: 100%;
+  margin:0 auto;
   background: #F7F7F7;
   border-radius: 12px;
   box-shadow: 0 0 0 10px #eae6da inset;
