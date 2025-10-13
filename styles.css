@@ -154,8 +154,15 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  max-height: 100dvh;
-  overflow: hidden; /* ✅ 回復早期穩定設定：頁面不捲動 */
+  overflow: auto;
+}
+
+/* ✅ 題目頁頂欄固定在最上方 */
+#screen-puzzle .topbar {
+  position: sticky;     /* 黏在頁面頂端 */
+  top: 0;
+  z-index: 5;
+  background: #1C6F73;  /* 黏住時不透出底色 */
 }
 
 .puzzle-topbar {
@@ -192,7 +199,6 @@ body {
   overflow: hidden;
   margin: 0;
   padding: 0 8px;
-  max-height: 100%;
 }
 
 /* ✅ 棋盤本體（Canvas）交由 JS fitBoard 控制尺寸 */
