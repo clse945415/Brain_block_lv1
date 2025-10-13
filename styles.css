@@ -154,7 +154,7 @@ body {
   flex-direction: column;
   min-height: 100dvh;
   max-height: 100dvh;
-  overflow: hidden; /* 禁止題目頁捲動 */
+  overflow: auto;
 }
 .puzzle-title {
   text-align: center; font-size: 32px; font-weight: 900; margin: 8px 0 6px;
