@@ -107,35 +107,22 @@ async function loadData(){
   STATE.puzzles = puzzles.puzzles;
 }
 
-/* ---------- Page Switch---------- */
+/* ---------- Page Switch ---------- */
 function go(screenId) {
-  // 先移除所有頁面的 active
   $$('.screen').forEach(s => s.classList.remove('active'));
 
-  // 找到要顯示的頁面
   const scr = $('#screen-' + screenId);
-  if (!scr) {
-    console.warn('[go] screen not found:', screenId);
-    return;
-  }
+  if (!scr) { console.warn('[go] screen not found:', screenId); return; }
 
-  // 顯示該頁
   scr.classList.add('active');
 
-  // 只針對排行榜頁允許滾動（其他頁交由 CSS 控制）
-  if (screenId === 'leaderboard') {
-    scr.style.overflowY = 'auto';
-  } else {
-    scr.style.overflow = ''; // 清除任何行內設定
-  }
+  // ✅ 讓捲動完全交給 CSS，這裡不要再動 overflow
+  scr.style.overflow = '';
 
   // 離開題目頁時，重設棋盤行內尺寸
   if (screenId !== 'puzzle') {
     const board = $('#board');
-    if (board) {
-      board.style.width = '';
-      board.style.height = '';
-    }
+    if (board) { board.style.width = ''; board.style.height = ''; }
   }
 
   // 回頂端
@@ -148,7 +135,7 @@ function go(screenId) {
       if (typeof window.__fitBoard === 'function') window.__fitBoard();
     });
   }
-}
+} 
 
 /* ---------- Cover ---------- */
 function initCover(){
