@@ -109,33 +109,37 @@ async function loadData(){
 
 /* ---------- Page Switch ---------- */
 function go(screenId) {
+  // 1) 切換畫面
   $$('.screen').forEach(s => s.classList.remove('active'));
-
   const scr = $('#screen-' + screenId);
   if (!scr) { console.warn('[go] screen not found:', screenId); return; }
-
   scr.classList.add('active');
 
-  // ✅ 讓捲動完全交給 CSS，這裡不要再動 overflow
+  // 2) 捲動交給 CSS，清掉任何殘留行內 overflow
   scr.style.overflow = '';
 
-  // 離開題目頁時，重設棋盤行內尺寸
+  // 3) 離開題目頁時，清 canvas 行內尺寸
   if (screenId !== 'puzzle') {
     const board = $('#board');
     if (board) { board.style.width = ''; board.style.height = ''; }
   }
 
-  // 回頂端
-  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  scr.scrollTop = 0;
+  // 4) 下一幀將所有可能的滾動容器歸零，避免殘留位置
+  requestAnimationFrame(() => {
+    scr.scrollTop = 0;
+    document.scrollingElement && (document.scrollingElement.scrollTop = 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
+  });
 
- // 題目頁載入後再 fit 棋盤（延遲執行以確保容器已展開）
-if (screenId === 'puzzle') {
-  setTimeout(() => {
-    if (typeof window.__fitBoard === 'function') window.__fitBoard();}, 200);
+  // 5) 題目頁再 fit 棋盤（等容器完成布局後）
+  if (screenId === 'puzzle') {
+    requestAnimationFrame(() => {
+      if (typeof window.__fitBoard === 'function') window.__fitBoard();
     });
   }
-} 
+}
 
 /* ---------- Cover ---------- */
 function initCover(){
