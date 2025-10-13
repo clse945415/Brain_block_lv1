@@ -148,19 +148,30 @@ body {
   .enter-circle img { width: 24px; height: 24px; }
 }
 
-/* ============ Puzzle（僅此頁不捲動） ============ */
+/* ============ Puzzle（此頁可自動捲動但預設不超出） ============ */
 #screen-puzzle {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   min-height: 100dvh;
   overflow: auto;
 }
-.puzzle-title {
-  text-align: center; font-size: 32px; font-weight: 900; margin: 8px 0 6px;
+
+.puzzle-topbar {
+  flex: 0 0 auto;
 }
+
+.puzzle-title {
+  text-align: center;
+  font-size: 32px;
+  font-weight: 900;
+  margin: 8px 0 6px;
+}
+
 .board-wrap {
   flex: 1 1 auto;
-  min-height: 120px /* 讓中段能在 flex 內收縮，避免高度被卡住 */
+  min-height: 120px; /* ⚠️ 補上分號 */
   width: 100%;
   display: flex;
   justify-content: center;
@@ -169,31 +180,37 @@ body {
   margin: 0;
   padding: 0 8px;
 }
+
 #board {
-  display: block; max-width: 100%;
-  background: #F7F7F7; border-radius: 12px;
+  display: block;
+  max-width: 100%;
+  background: #F7F7F7;
+  border-radius: 12px;
   box-shadow: 0 0 0 10px #eae6da inset;
-  touch-action: none; -webkit-tap-highlight-color: transparent;
-  user-select: none; cursor: pointer;
-}
-.toolbar {
-  display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
-  margin: 6px 0 10px; user-select: none;
-}
-.toolbar .tool {
-  background: #fff; border: 2px solid #eae6da;
-  border-radius: 10px; padding: 6px; outline: none;
+  touch-action: none;
   -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  cursor: pointer;
 }
-.toolbar img { height: 40px; pointer-events: none; }
-.tool.active {
-  border-color: #114a4d;
-  box-shadow: 0 0 0 4px rgba(255,255,255,.95) inset, 0 0 0 3px #114a4d;
-  transform: translateY(-1px);
+
+.toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 6px 0 10px;
+  user-select: none;
 }
+
 .puzzle-footer {
-  display: flex; align-items: center; justify-content: center;
-  gap: 18px; margin: 8px 0 14px; -webkit-tap-highlight-color: transparent;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin: 8px 0 14px;
+  -webkit-tap-highlight-color: transparent;
 }
 .pill {
   background: #fff; color: #114a4d;
