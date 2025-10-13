@@ -157,14 +157,6 @@ body {
   overflow: auto;
 }
 
-/* ✅ 題目頁頂欄固定在最上方 */
-#screen-puzzle .topbar {
-  position: sticky;     /* 黏在頁面頂端 */
-  top: 0;
-  z-index: 5;
-  background: #1C6F73;  /* 黏住時不透出底色 */
-}
-
 .puzzle-topbar {
   position: relative;
   display: grid;
