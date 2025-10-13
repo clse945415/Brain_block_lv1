@@ -149,18 +149,30 @@ body {
   .enter-circle img { width: 24px; height: 24px; }
 }
 
-/* ============ Puzzle（此頁可自動捲動但預設不超出） ============ */
+/* ============ Puzzle（僅此頁不捲動） ============ */
 #screen-puzzle {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
   min-height: 100dvh;
-  overflow: auto;
+  max-height: 100dvh;
+  overflow: hidden; /* ✅ 回復早期穩定設定：頁面不捲動 */
 }
 
 .puzzle-topbar {
-  flex: 0 0 auto;
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  padding: 8px 12px 0;
+}
+
+.topbar-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: .5px;
 }
 
 .puzzle-title {
@@ -170,29 +182,23 @@ body {
   margin: 8px 0 6px;
 }
 
-/* 讓題目頁頂欄永遠黏在最上面，不會跑到中間 */
-#screen-puzzle .topbar {
-  position: sticky;           /* 新增 */
-  top: 0;                     /* 新增 */
-  z-index: 5;                 /* 新增：確保在棋盤之上 */
-  background: #1C6F73;        /* 新增：黏住時不透出底色 */
-}
-
+/* ✅ 棋盤容器 */
 .board-wrap {
   flex: 1 1 auto;
-  min-height: 120px; /* ⚠️ 補上分號 */
-  width: 100%;
+  min-height: 0; /* 防止卡高度 */
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
   margin: 0;
   padding: 0 8px;
+  max-height: 100%;
 }
 
+/* ✅ 棋盤本體（Canvas）交由 JS fitBoard 控制尺寸 */
 #board {
   display: block;
   max-width: 100%;
-  margin:0 auto;
   background: #F7F7F7;
   border-radius: 12px;
   box-shadow: 0 0 0 10px #eae6da inset;
@@ -202,8 +208,8 @@ body {
   cursor: pointer;
 }
 
+/* 工具列與底部按鈕保持不變 */
 .toolbar {
-  flex: 0 0 auto;
   display: flex;
   justify-content: center;
   gap: 8px;
@@ -212,8 +218,24 @@ body {
   user-select: none;
 }
 
+.toolbar .tool {
+  background: #fff;
+  border: 2px solid #eae6da;
+  border-radius: 10px;
+  padding: 6px;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.toolbar img { height: 40px; pointer-events: none; }
+
+.tool.active {
+  border-color: #114a4d;
+  box-shadow: 0 0 0 4px rgba(255,255,255,.95) inset, 0 0 0 3px #114a4d;
+  transform: translateY(-1px);
+}
+
 .puzzle-footer {
-  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -221,12 +243,23 @@ body {
   margin: 8px 0 14px;
   -webkit-tap-highlight-color: transparent;
 }
+
 .pill {
-  background: #fff; color: #114a4d;
-  border: 2px solid #eae6da; border-radius: 999px;
-  padding: 8px 14px; font-weight: 800; user-select: none;
+  background: #fff;
+  color: #114a4d;
+  border: 2px solid #eae6da;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 800;
+  user-select: none;
 }
-.status-small { width: 42px; height: 42px; display: block; pointer-events: none; }
+
+.status-small {
+  width: 42px;
+  height: 42px;
+  display: block;
+  pointer-events: none;
+}
 
 /* ============ Badge ============ */
 #screen-badge {
