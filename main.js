@@ -129,10 +129,10 @@ function go(screenId) {
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   scr.scrollTop = 0;
 
-  // 題目頁載入後再 fit 棋盤
-  if (screenId === 'puzzle') {
-    requestAnimationFrame(() => {
-      if (typeof window.__fitBoard === 'function') window.__fitBoard();
+ // 題目頁載入後再 fit 棋盤（延遲執行以確保容器已展開）
+if (screenId === 'puzzle') {
+  setTimeout(() => {
+    if (typeof window.__fitBoard === 'function') window.__fitBoard();}, 200);
     });
   }
 } 
