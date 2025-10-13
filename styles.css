@@ -56,12 +56,6 @@ body {
   background: transparent; border: none; padding: 6px;
   border-radius: 10px; -webkit-tap-highlight-color: transparent;
 }
-/* 讓所有頂部的返回/排行榜按鈕圖示有固定尺寸 */
-.topbar .nav-btn img{
-  width: 28px;
-  height: 28px;
-  display: block;
-}
 
 /* Puzzle header（左返回｜中進度｜右排行榜） */
 .puzzle-topbar {
