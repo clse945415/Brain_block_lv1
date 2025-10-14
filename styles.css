@@ -178,12 +178,12 @@ body {
   text-align: center;
   font-size: 32px;
   font-weight: 900;
-  margin: 8px 0 6px;
+  margin: 100px 0 6px;
 }
 
 /* ✅ 棋盤容器 */
 .board-wrap {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0; /* 防止卡高度 */
   display: flex;
   justify-content: center;
@@ -239,6 +239,7 @@ body {
   justify-content: center;
   gap: 18px;
   margin: 8px 0 14px;
+  margin-top: auto;
   -webkit-tap-highlight-color: transparent;
 }
 
