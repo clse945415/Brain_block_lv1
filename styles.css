@@ -72,7 +72,7 @@ body {
 
 /* ============ Cover ============ */
 .cover-top img {
-  display: block; max-width: 720px; width: 90vw; margin: 0 auto;
+  display: block; max-width: 720px; width: 90vw; margin: 0 auto; margin-top:50px;
   border-radius: 12px;
 }
 .cover-form {
