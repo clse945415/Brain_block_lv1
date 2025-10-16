@@ -363,7 +363,11 @@ function bindToolbar(){
 
   // 右上🏆：先切頁後讀取
   const lbBtn = $('#btnToLeaderboard');
-  if (lbBtn) lbBtn.addEventListener('click', () => { go('leaderboard'); loadLeaderboard(); });
+if (lbBtn) lbBtn.addEventListener('click', () => {
+  STATE.lastScreen = document.querySelector('.screen.active')?.id.replace('screen-','');
+  go('leaderboard');
+  loadLeaderboard();
+});
 }
 function navigateQ(delta){
   let q=STATE.currentQ+delta;
@@ -605,7 +609,9 @@ function initNav(){
   );
   // 排行榜頁返回
   const lbBack = document.querySelector('#screen-leaderboard .topbar .nav-btn');
-  if (lbBack) lbBack.addEventListener('click', () => { go('levels'); renderLevelList(); });
+if (lbBack) lbBack.addEventListener('click', () => {
+  go(STATE.lastScreen === 'puzzle' ? 'puzzle' : 'levels');
+});
 }
 
 /* ---------- PWA Install (Add to Home Screen) ---------- */
