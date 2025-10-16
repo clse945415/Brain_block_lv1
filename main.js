@@ -94,6 +94,11 @@ function loadProgressFromLocal(){
   }catch(e){}
 }
 
+/* 🔔 全域進度事件 */
+function emitProgressChanged(){
+  window.dispatchEvent(new CustomEvent('bb:progress-changed'));
+}
+
 /* ---------- Load Data ---------- */
 async function loadData(){
   const bust = 'ver=' + Date.now();
@@ -139,6 +144,11 @@ function go(screenId) {
       if (typeof window.__fitBoard === 'function') window.__fitBoard();
     });
   }
+
+  // 6) 切到關卡清單 → 強制重繪（徽章/進度立即更新）
+  if (screenId === 'levels') {
+    requestAnimationFrame(() => renderLevelList());
+  }
 }
 
 /* ---------- Cover ---------- */
@@ -175,13 +185,15 @@ function renderLevelList(){
       ? `public/badges/${lv.badge}_unlocked.png`
       : `public/badges/${lv.badge}_locked.svg`;
     const progress = `${clearedCnt} / 20`;
+    const verBust = isUnlocked ? ('?_t=' + STATE.solved.size) : ''; // 避免快取
+
     li.innerHTML = `
       <div class="level-left">
         <div class="level-title">${lv.name}</div>
         <div class="level-progress">${progress}</div>
       </div>
       <div class="badge-circle ${isUnlocked ? 'is-unlocked' : ''}">
-        <img src="${badgeSrc}" alt="">
+        <img src="${badgeSrc}${verBust}" alt="">
       </div>
       <button class="enter-circle" aria-label="進入 ${lv.name}">
         <img src="public/icons/nav/arrow_next.svg" alt="">
@@ -495,6 +507,7 @@ function checkSolved(){
   showFireworks('#statusImg');
   updateLevelProgressForCurrentQ();
   saveProgressToLocal();
+  emitProgressChanged(); // 立刻通知所有畫面重繪
 
   const lv=STATE.levels.find(l=>STATE.currentQ>=l.range[0]&&STATE.currentQ<=l.range[1]);
   if(lv && countSolvedInRange(lv.range)===20){
@@ -585,14 +598,14 @@ function initNav(){
     btn.addEventListener('click', () => go('cover'))
   );
   $$('#screen-puzzle .topbar .nav-btn[data-go="levels"]').forEach(btn =>
-    btn.addEventListener('click', () => go('levels'))
+    btn.addEventListener('click', () => { go('levels'); renderLevelList(); })
   );
   $$('#screen-badge .topbar .nav-btn').forEach(btn =>
-    btn.addEventListener('click', () => go('levels'))
+    btn.addEventListener('click', () => { go('levels'); renderLevelList(); })
   );
   // 排行榜頁返回
   const lbBack = document.querySelector('#screen-leaderboard .topbar .nav-btn');
-  if (lbBack) lbBack.addEventListener('click', () => go('levels'));
+  if (lbBack) lbBack.addEventListener('click', () => { go('levels'); renderLevelList(); });
 }
 
 /* ---------- PWA Install (Add to Home Screen) ---------- */
@@ -742,6 +755,30 @@ function injectPWAStyles(){
   style.textContent = css;
   document.head.appendChild(style);
 }
+
+/* ---------- 事件委派：大徽章頁 下一關 ---------- */
+document.body.addEventListener('click', (e) => {
+  const btn = e.target.closest('#btnBadgeNext');
+  if (!btn) return;
+  // 點下一關前保險廣播一次（確保清單徽章立即解鎖）
+  emitProgressChanged();
+
+  const badgeImg = document.getElementById('badgeBig');
+  const cur = STATE.levels.findIndex(lv => badgeImg?.src?.includes(lv.badge));
+  const nextLv = STATE.levels[cur + 1];
+  if (nextLv) {
+    const [firstQ] = nextLv.range;
+    openPuzzle(firstQ);
+  } else {
+    go('levels');
+  }
+});
+
+/* ---------- 監聽進度事件：任何地方都能即時刷新 ---------- */
+window.addEventListener('bb:progress-changed', () => {
+  renderLevelList();
+  try { updateLevelProgressForCurrentQ(); } catch(_) {}
+});
 
 /* ---------- Boot ---------- */
 (async function(){
